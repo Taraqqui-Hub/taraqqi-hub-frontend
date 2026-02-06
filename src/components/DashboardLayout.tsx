@@ -42,10 +42,10 @@ const getNavItems = (userType: string) => {
 	}
 	return [
 		{ href: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
-		{ href: "/employer/profile", label: "Company", icon: Building2 },
-		{ href: "/jobs/manage", label: "Manage Jobs", icon: Briefcase },
-		{ href: "/applications", label: "Applications", icon: FileText },
-		{ href: "/wallet", label: "Wallet", icon: Wallet },
+		{ href: "/employer/profile", label: "Company Profile", icon: Building2 },
+		{ href: "/jobs/manage", label: "My Jobs", icon: Briefcase },
+		{ href: "/employer/applicants", label: "Applicants", icon: FileText },
+		{ href: "/employer/billing", label: "Billing & Invoices", icon: Wallet },
 	];
 };
 

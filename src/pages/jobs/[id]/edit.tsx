@@ -1,6 +1,6 @@
 /**
- * Post New Job – Simplified Wizard
- * Intuitive 5-step flow with Pincode prefill & Enhanced Selection
+ * Edit Job Page
+ * Reuses the wizard flow from PostJobPage but for editing existing jobs.
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -244,21 +244,21 @@ interface PincodeLookupState {
 	places: string[];
 }
 
-export default function PostJobPage() {
+export default function EditJobPage() {
 	const router = useRouter();
+    const { id } = router.query;
 	const [formData, setFormData] = useState(defaultForm);
 	const [saving, setSaving] = useState(false);
+    const [fetching, setFetching] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [moderationIssues, setModerationIssues] = useState<string[]>([]);
-	const [canPost, setCanPost] = useState<{ allowed: boolean; missingSteps?: string[] } | null>(null);
-
 	// Wizard State
 	const [expandedSection, setExpandedSection] = useState<string | null>("overview");
 	const [completedSections, setCompletedSections] = useState<Record<string, boolean>>({
-		overview: false,
-		details: false,
-		compensation: false,
-		preferences: false
+		overview: true,
+		details: true,
+		compensation: true,
+		preferences: true
 	});
 
 	// Pincode Lookup State
@@ -270,15 +270,68 @@ export default function PostJobPage() {
 		places: [],
 	});
 
-	// Check eligibility
+	// Check eligibility & Fetch Job Details
 	useEffect(() => {
-		api.get("/employer/jobs/can-post")
-			.then((r) => {
-				const d = r.data?.payload ?? r.data;
-				setCanPost({ allowed: d.allowed, missingSteps: d.missingSteps });
-			})
-			.catch(() => setCanPost({ allowed: false }));
-	}, []);
+        const fetchJobDetails = async () => {
+            if (!id) return;
+            try {
+                const response = await api.get(`/employer/jobs/${id}`);
+                const job = response.data?.payload?.job || response.data?.job;
+
+                if (job) {
+                    setFormData({
+                        title: job.title || "",
+                        category: job.category || "",
+                        jobType: job.jobType || "full-time",
+                        locationType: job.locationType || "onsite",
+                        pincode: job.pincode || "",
+                        city: job.city || "",
+                        district: job.district || "",
+                        area: job.area || "",
+                        state: job.state || "",
+                        roleSummary: job.roleSummary || "",
+                        description: job.description || "",
+                        responsibilities: job.responsibilities || "",
+                        requirements: job.requirements || "",
+                        skillsRequired: job.skillsRequired || [],
+                        minExperienceYears: job.minExperienceYears || 0,
+                        maxExperienceYears: job.maxExperienceYears || "",
+                        educationRequired: job.educationRequired || "",
+                        salaryMin: job.salaryMin || "",
+                        salaryMax: job.salaryMax || "",
+                        salaryType: job.salaryType || "yearly",
+                        hideSalary: job.hideSalary || false,
+                        isSalaryNegotiable: job.isSalaryNegotiable || false,
+                        benefits: job.benefits || [],
+                        preferredLanguage: job.preferredLanguage?.split(", ") || [],
+                        freshersAllowed: job.freshersAllowed === true ? "yes" : job.freshersAllowed === false ? "no" : "",
+                        ageMin: job.ageMin || "",
+                        ageMax: job.ageMax || "",
+                        genderPreference: job.genderPreference || "",
+                        applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : "",
+                        maxApplications: job.maxApplications || "",
+                        autoCloseOnLimit: job.autoCloseOnLimit || false,
+                        status: job.status || "draft",
+                    });
+                     // Set all sections to completed so user can jump around
+                    setCompletedSections({
+                        overview: true,
+                        details: true,
+                        compensation: true,
+                        preferences: true
+                    });
+                }
+            } catch {
+                setError("Failed to load job details.");
+            } finally {
+                setFetching(false);
+            }
+        };
+
+        if (router.isReady) {
+            fetchJobDetails();
+        }
+	}, [id, router.isReady]);
 
 	// Pincode Lookup Logic
 	const lookupPincode = useCallback(async (pincode: string) => {
@@ -430,16 +483,15 @@ export default function PostJobPage() {
 		setError(null);
 		setModerationIssues([]);
 		try {
-			const response = await api.post("/employer/jobs", buildPayload(statusOverride));
-			const job = response.data?.payload?.job ?? response.data?.job;
-			const jobId = job?.id ?? job?.uuid;
-			if (jobId) router.push(`/jobs/${jobId}/promote?new=1`);
-			else router.push("/jobs/manage");
+            // Use PATCH for editing
+			await api.patch(`/employer/jobs/${id}`, buildPayload(statusOverride));
+            // Redirect back to manage page
+			router.push("/jobs/manage");
 		} catch (err: unknown) {
 			const error = err as { response?: { data?: { reason?: { issues?: string[] }, message?: string } } };
 			const errData = error.response?.data;
 			if (errData?.reason?.issues) setModerationIssues(errData.reason.issues);
-			setError(errData?.message || "Failed to create job");
+			setError(errData?.message || "Failed to update job");
 		} finally {
 			setSaving(false);
 		}
@@ -464,13 +516,25 @@ export default function PostJobPage() {
 	const completedCount = Object.values(completedSections).filter(Boolean).length;
 	const progressPercentage = Math.round((completedCount / (totalSteps - 1)) * 100);
 
+    if (fetching) {
+        return (
+            <ProtectedRoute allowedUserTypes={["employer"]}>
+                <DashboardLayout>
+                    <div className="flex justify-center items-center h-96">
+                        <Loader2 className="animate-spin text-indigo-600" size={32} />
+                    </div>
+                </DashboardLayout>
+            </ProtectedRoute>
+        );
+    }
+
 	return (
 		<ProtectedRoute allowedUserTypes={["employer"]}>
 			<DashboardLayout>
 				<div className="max-w-3xl mx-auto pb-20">
 					<div className="mb-6">
-						<h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">Post a New Job</h1>
-						<p className="text-slate-500">Create a compelling job post to attract the best talent.</p>
+						<h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">Edit Job</h1>
+						<p className="text-slate-500">Update the details of your job posting.</p>
 					</div>
 
 					{/* Simple Progress Bar */}
@@ -486,18 +550,6 @@ export default function PostJobPage() {
 							/>
 						</div>
 					</div>
-
-					{canPost && !canPost.allowed && (
-						<div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800 flex items-start gap-3">
-							<AlertCircle className="mt-0.5" size={18} />
-							<div>
-								<p className="font-medium">Job posting is currently restricted.</p>
-								<ul className="mt-1 list-disc list-inside text-xs opacity-80">
-									{canPost.missingSteps?.map((s, i) => <li key={i}>{s}</li>)}
-								</ul>
-							</div>
-						</div>
-					)}
 
 					{error && (
 						<div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg text-sm border border-red-100">
@@ -904,8 +956,8 @@ export default function PostJobPage() {
 
 						{/* Step 5: Review & Publish */}
 						<QuestCard
-							title="Review & Publish"
-							description="Final check before going live"
+							title="Review & Update"
+							description="Final check before saving"
 							icon={<Trophy size={20} />}
 							showXp={false}
 							completed={false}
@@ -949,20 +1001,13 @@ export default function PostJobPage() {
 
 								<div className="flex flex-col sm:flex-row gap-3">
 									<button 
-										onClick={() => handleSubmit('draft')} 
-										disabled={saving}
-										className="flex-1 py-3 px-4 bg-white border border-slate-300 text-slate-700 font-medium rounded-xl hover:bg-slate-50 transition-colors"
-									>
-										{saving ? "Saving..." : "Save as Draft"}
-									</button>
-									<button 
-										onClick={() => handleSubmit('active')} 
+										onClick={() => handleSubmit()} 
 										disabled={saving}
 										className="flex-1 py-3 px-4 bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:from-indigo-700 hover:to-violet-700 transition-all flex items-center justify-center gap-2"
 									>
-										{saving ? "Publishing..." : (
+										{saving ? "Updating..." : (
 											<>
-												<Sparkles size={18} /> Publish Job Now
+												<Sparkles size={18} /> Update Job Details
 											</>
 										)}
 									</button>

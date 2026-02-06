@@ -43,7 +43,7 @@ export default function EmployerProfilePage() {
 	const loadProfile = async () => {
 		try {
 			const response = await api.get("/profile/employer");
-			const p = response.data.profile;
+			const p = response.data?.payload?.profile || response.data?.profile;
 			setHasProfile(true);
 			setFormData({
 				companyName: p.companyName || "",

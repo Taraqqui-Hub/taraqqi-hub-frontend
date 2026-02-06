@@ -43,31 +43,60 @@ export function useCloudinaryUpload(uploadType: UploadType): UseCloudinaryUpload
 			try {
 				// Step 1: Get signed params from backend
 				const signResponse = await api.post("/upload/sign", { uploadType });
-				const { params, config: uploadConfig, uploadUrl } = signResponse.data;
+				
+				// Handle potential payload wrapper or direct response
+				const responseData = signResponse.data.payload || signResponse.data;
+				const { params, config: uploadConfig, uploadUrl } = responseData;
+
+				if (!uploadConfig) {
+					console.error("Missing upload config in response:", signResponse.data);
+					throw new Error("Failed to get upload configuration");
+				}
+
 				setConfig(uploadConfig);
 
 				// Validate file size
-				if (file.size > uploadConfig.maxFileSizeBytes) {
+				if (uploadConfig.maxFileSizeBytes && file.size > uploadConfig.maxFileSizeBytes) {
 					throw new Error(`File too large. Maximum size: ${uploadConfig.maxFileSizeMB}MB`);
 				}
 
 				// Validate file format
 				const fileExt = file.name.split(".").pop()?.toLowerCase();
-				if (fileExt && !uploadConfig.allowedFormats.includes(fileExt)) {
+				if (fileExt && uploadConfig.allowedFormats && !uploadConfig.allowedFormats.includes(fileExt)) {
 					throw new Error(
 						`Invalid format: ${fileExt}. Allowed: ${uploadConfig.allowedFormats.join(", ")}`
 					);
 				}
 
 				// Step 2: Upload directly to Cloudinary
+				// IMPORTANT: Parameters must be added in ALPHABETICAL ORDER to match signature
 				const formData = new FormData();
-				formData.append("file", file);
+				
+				// 1. api_key
 				formData.append("api_key", params.apiKey);
-				formData.append("timestamp", params.timestamp.toString());
-				formData.append("signature", params.signature);
+				
+				// 2. folder
 				formData.append("folder", params.folder);
+				
+				// 3. public_id
 				formData.append("public_id", params.publicId);
+				
+				// 4. tags
 				formData.append("tags", params.tags);
+				
+				// 5. timestamp
+				formData.append("timestamp", params.timestamp.toString());
+
+				// 6. allowed_formats (Optional but critical if part of signature)
+				if (params.allowedFormats && params.allowedFormats.length > 0) {
+					formData.append("allowed_formats", params.allowedFormats.join(","));
+				}
+
+				// 7. file (must be last or after all signed params)
+				formData.append("file", file);
+				
+				// 8. signature
+				formData.append("signature", params.signature);
 
 				const uploadResponse = await fetch(uploadUrl, {
 					method: "POST",

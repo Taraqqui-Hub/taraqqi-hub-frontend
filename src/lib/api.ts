@@ -87,12 +87,13 @@ api.interceptors.response.use(
 // Types
 // ============================================
 
-export type VerificationStatus = 
-	| "draft" 
-	| "submitted" 
-	| "under_review" 
-	| "verified" 
-	| "rejected" 
+export type VerificationStatus =
+	| "draft"
+	| "payment_verified"
+	| "submitted"
+	| "under_review"
+	| "verified"
+	| "rejected"
 	| "suspended";
 
 export interface User {
@@ -107,6 +108,7 @@ export interface User {
 	emailVerified: boolean;
 	profileComplete?: boolean;
 	profileCompletionPercentage?: number;
+	hasPreferences?: boolean;
 	permissions: string[];
 }
 
@@ -270,6 +272,10 @@ export const educationApi = {
 		const response = await api.delete(`/profile/jobseeker/education/${id}`);
 		return response.data;
 	},
+	markNoFormalEducation: async () => {
+		const response = await api.post("/profile/jobseeker/education/no-formal");
+		return response.data;
+	},
 };
 
 // ============================================
@@ -290,6 +296,106 @@ export const preferencesApi = {
 	},
 	save: async (data: UserPreferences): Promise<{ message: string }> => {
 		const response = await api.post("/preferences", data);
+		return response.data;
+	},
+};
+
+// ============================================
+// Profile Wizard API
+// ============================================
+
+export const profileWizardApi = {
+	getStatus: async () => {
+		const response = await api.get("/profile/wizard/status");
+		return response.data;
+	},
+	updatePersonal: async (data: any) => {
+		const response = await api.patch("/profile/wizard/personal", data);
+		return response.data;
+	},
+	updateAddress: async (data: any) => {
+		const response = await api.patch("/profile/wizard/address", data);
+		return response.data;
+	},
+	updateSocioEconomic: async (data: any) => {
+		const response = await api.patch("/profile/wizard/socio-economic", data);
+		return response.data;
+	},
+	updateFamily: async (data: any) => {
+		const response = await api.patch("/profile/wizard/family", data);
+		return response.data;
+	},
+	updateCommunity: async (data: any) => {
+		const response = await api.patch("/profile/wizard/community", data);
+		return response.data;
+	},
+};
+
+// ============================================
+// Experience API
+// ============================================
+
+export const experienceApi = {
+	list: async () => {
+		const response = await api.get("/profile/jobseeker/experience");
+		return response.data;
+	},
+	create: async (data: any) => {
+		const response = await api.post("/profile/jobseeker/experience", data);
+		return response.data;
+	},
+	update: async (id: string, data: any) => {
+		const response = await api.patch(`/profile/jobseeker/experience/${id}`, data);
+		return response.data;
+	},
+	delete: async (id: string) => {
+		const response = await api.delete(`/profile/jobseeker/experience/${id}`);
+		return response.data;
+	},
+};
+
+// ============================================
+// Skills API
+// ============================================
+
+export const skillsApi = {
+	list: async () => {
+		const response = await api.get("/profile/jobseeker/skills");
+		return response.data;
+	},
+	create: async (data: any) => {
+		const response = await api.post("/profile/jobseeker/skills", data);
+		return response.data;
+	},
+	bulkCreate: async (skills: string[]) => {
+		const response = await api.post("/profile/jobseeker/skills/bulk", { skills });
+		return response.data;
+	},
+	update: async (id: string, data: any) => {
+		const response = await api.patch(`/profile/jobseeker/skills/${id}`, data);
+		return response.data;
+	},
+	delete: async (id: string) => {
+		const response = await api.delete(`/profile/jobseeker/skills/${id}`);
+		return response.data;
+	},
+};
+
+// ============================================
+// Interests API
+// ============================================
+
+export const interestsApi = {
+	list: async () => {
+		const response = await api.get("/profile/jobseeker/interests");
+		return response.data;
+	},
+	create: async (data: any) => {
+		const response = await api.post("/profile/jobseeker/interests", data);
+		return response.data;
+	},
+	delete: async (id: string) => {
+		const response = await api.delete(`/profile/jobseeker/interests/${id}`);
 		return response.data;
 	},
 };

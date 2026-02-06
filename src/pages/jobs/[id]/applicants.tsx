@@ -30,12 +30,12 @@ interface Applicant {
 }
 
 const statusOptions = [
-	{ value: "reviewed", label: "Mark Reviewed" },
-	{ value: "shortlisted", label: "Shortlist" },
-	{ value: "interview", label: "Move to Interview" },
-	{ value: "offered", label: "Send Offer" },
-	{ value: "hired", label: "Mark Hired" },
-	{ value: "rejected", label: "Reject" },
+	{ value: "reviewed", label: "Reviewed" },
+	{ value: "shortlisted", label: "Shortlisted" },
+	{ value: "interview", label: "Interview" },
+	{ value: "offered", label: "Offered" },
+	{ value: "hired", label: "Selected" },
+	{ value: "rejected", label: "Rejected" },
 ];
 
 export default function ApplicantsPage() {
@@ -57,8 +57,9 @@ export default function ApplicantsPage() {
 	const loadApplicants = async () => {
 		try {
 			const response = await api.get(`/employer/jobs/${id}/applicants`);
-			setJob(response.data.job);
-			setApplicants(response.data.applicants || []);
+			const payload = response.data?.payload ?? response.data;
+			setJob(payload.job);
+			setApplicants(payload.applicants || []);
 		} catch (err) {
 			console.error("Failed to load applicants", err);
 		} finally {
@@ -81,6 +82,15 @@ export default function ApplicantsPage() {
 			loadApplicants();
 		} catch (err: any) {
 			alert(err.response?.data?.error || "Failed to update status");
+		}
+	};
+
+	const handleViewProfile = async (applicationId: string) => {
+		try {
+			await api.post(`/employer/jobs/applications/${applicationId}/view`);
+			loadApplicants();
+		} catch (err: any) {
+			alert(err.response?.data?.error || "Failed to record view");
 		}
 	};
 
@@ -159,11 +169,11 @@ export default function ApplicantsPage() {
 													</div>
 												</div>
 												<span
-													className={`px-2 py-1 text-xs rounded capitalize ${
+													className={`px-2 py-1 text-xs rounded ${
 														statusColors[app.status] || "bg-slate-100"
 													}`}
 												>
-													{app.status}
+													{app.status === "reviewed" ? "Viewed" : app.status === "hired" ? "Selected" : app.status}
 												</span>
 											</div>
 
@@ -184,6 +194,12 @@ export default function ApplicantsPage() {
 											{/* Actions */}
 											<div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
 												<div className="flex items-center gap-2">
+													<button
+														onClick={() => handleViewProfile(app.id)}
+														className="text-sm px-3 py-1 border border-slate-300 rounded hover:bg-slate-50"
+													>
+														View profile
+													</button>
 													<select
 														value=""
 														onChange={(e) => {

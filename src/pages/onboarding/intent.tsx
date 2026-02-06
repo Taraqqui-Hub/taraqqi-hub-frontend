@@ -11,7 +11,7 @@ import { preferencesApi } from "@/lib/api";
 
 export default function IntentPage() {
 	const router = useRouter();
-	const { isLoading: authLoading } = useAuthStore();
+	const { isLoading: authLoading, checkAuth } = useAuthStore();
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +37,9 @@ export default function IntentPage() {
 				wantsSkillPrograms: intents.includes("skills"),
 				wantsCommunityPrograms: intents.includes("community"),
 			});
+			
+			// Refresh user state so hasPreferences is updated
+			await checkAuth();
 			
 			// Navigate to KYC
 			router.push("/kyc");

@@ -37,9 +37,10 @@ interface AuthState {
 // Redirect map based on verification status
 const VERIFICATION_REDIRECTS: Record<VerificationStatus, string | null> = {
 	draft: null, // Handled dynamically in getVerificationRedirect
+	payment_verified: "/employer/register/company",
 	submitted: "/verification-pending",
 	under_review: "/verification-pending",
-	verified: null, // No redirect needed
+	verified: null,
 	rejected: "/verification-rejected",
 	suspended: "/account-suspended",
 };
@@ -223,7 +224,7 @@ export const useAuthStore = create<AuthState>()(
 					return "/verify-email";
 				}
 				
-				// 1.5 Contact Details (Phone)
+			// 1.5 Contact Details (Phone)
 				// If strictly enforcing phone verification (user said phone verification is mandatory via OTP)
 				// Check if phone exists and is verified? Or just exists?
 				// User wants "Screen 4A". I'll route there if phone is missing.
@@ -232,8 +233,25 @@ export const useAuthStore = create<AuthState>()(
 					return "/onboarding/contact";
 				}
 
-				// 2. KYC not submitted (Draft)
-				if (user.verificationStatus === "draft") {
+				// 1.6 User Intent/Preferences (only for individuals)
+				// If user has phone but hasn't set preferences, route to intent page
+				if (user.userType === "individual" && user.hasPreferences === false) {
+					return "/onboarding/intent";
+				}
+
+				// 2. Employer: pay registration fee first
+				if (user.userType === "employer" && user.verificationStatus === "draft") {
+					return "/employer/register/payment";
+				}
+				// 2b. Individual: profile then KYC
+				if (user.userType === "individual" && user.verificationStatus === "draft") {
+					return "/kyc";
+				}
+				// 2c. Employer payment_verified: company profile then KYC
+				if (user.userType === "employer" && user.verificationStatus === "payment_verified") {
+					if (!user.profileComplete) {
+						return "/employer/register/company";
+					}
 					return "/kyc";
 				}
 

@@ -52,6 +52,26 @@ export default function VerificationPendingPage() {
 						This typically takes <span className="text-[#0F172A] font-semibold">1-3 business days</span>.
 					</p>
 
+					{/* Employer vs individual: what you can / cannot do */}
+					{user?.userType === "employer" ? (
+						<div className="space-y-4 mb-8">
+							<div className="bg-green-50 rounded-lg p-4 border border-green-200 text-left">
+								<h3 className="text-[#0F172A] font-semibold mb-2">You can</h3>
+								<ul className="text-sm text-[#475569] space-y-1">
+									<li>• Complete or edit your company profile</li>
+									<li>• Prepare job drafts</li>
+								</ul>
+							</div>
+							<div className="bg-amber-50 rounded-lg p-4 border border-amber-200 text-left">
+								<h3 className="text-[#0F172A] font-semibold mb-2">You cannot yet</h3>
+								<ul className="text-sm text-[#475569] space-y-1">
+									<li>• Publish jobs</li>
+									<li>• View applicants</li>
+								</ul>
+							</div>
+						</div>
+					) : null}
+
 					{/* What happens next */}
 					<div className="bg-[#F8FAFC] rounded-lg p-6 mb-8 text-left border border-[#E2E8F0]">
 						<h3 className="text-[#0F172A] font-semibold mb-4">What happens next?</h3>
@@ -72,7 +92,11 @@ export default function VerificationPendingPage() {
 								<div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
 									<span className="text-[#2563EB] text-xs font-bold">3</span>
 								</div>
-								<p className="text-[#475569] text-sm">Once approved, you&apos;ll have full platform access</p>
+								<p className="text-[#475569] text-sm">
+									{user?.userType === "employer"
+										? "Once approved, you can post jobs and manage applicants"
+										: "Once approved, you'll have full platform access"}
+								</p>
 							</li>
 						</ul>
 					</div>

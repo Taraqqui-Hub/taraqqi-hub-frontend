@@ -70,6 +70,11 @@ export default function RegisterPage() {
 							We&apos;ve sent a verification link to <span className="text-[#2563EB] font-medium break-all">{email}</span>.
 							Please check your inbox and click the link to verify your email.
 						</p>
+						{userType === "employer" && (
+							<p className="text-[#64748B] text-sm mb-4">
+								After verifying, log in and you&apos;ll be asked to pay the one-time onboarding fee, then complete your company profile and business verification.
+							</p>
+						)}
 						<Link
 							href="/login"
 							className="inline-block py-3 px-6 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md transition"
