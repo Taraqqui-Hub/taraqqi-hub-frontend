@@ -159,8 +159,8 @@ export const authApi = {
 	},
 
 	// Resend email verification
-	resendVerification: async (): Promise<{ message: string }> => {
-		const response = await api.post("/auth/verify-email/resend");
+	resendVerification: async (email: string): Promise<{ message: string }> => {
+		const response = await api.post("/auth/verify-email/resend", { email });
 		return response.data;
 	},
 

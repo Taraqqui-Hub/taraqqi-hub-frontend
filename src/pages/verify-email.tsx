@@ -7,13 +7,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { authApi } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 export default function VerifyEmailPage() {
 	const router = useRouter();
 	const { token } = router.query;
+	const { user } = useAuthStore();
 
 	const [status, setStatus] = useState<"loading" | "success" | "error" | "waiting">("waiting");
 	const [error, setError] = useState<string | null>(null);
+	const [resendStatus, setResendStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+	const [resendMessage, setResendMessage] = useState<string>("");
 
 	// Verify email when token is available
 	useEffect(() => {
@@ -40,6 +44,25 @@ export default function VerifyEmailPage() {
 		}
 	};
 
+	const handleResendLink = async () => {
+		if (!user?.email) return;
+
+		setResendStatus("loading");
+		try {
+			await authApi.resendVerification(user.email);
+			setResendStatus("success");
+			setResendMessage("Verification link sent!");
+			setTimeout(() => setResendStatus("idle"), 5000);
+		} catch (err: any) {
+			setResendStatus("error");
+			setResendMessage(err.response?.data?.error || "Failed to resend link");
+			setTimeout(() => {
+				setResendStatus("idle");
+				setResendMessage("");
+			}, 3000);
+		}
+	};
+
 	// Waiting for token
 	if (status === "waiting" && !token) {
 		return (
@@ -61,6 +84,24 @@ export default function VerifyEmailPage() {
 						>
 							Back to Login
 						</Link>
+						
+						{user?.email && (
+							<div className="mt-6 border-t pt-4">
+								<p className="text-sm text-gray-500 mb-2">Didn&apos;t receive the email?</p>
+								<button
+									onClick={handleResendLink}
+									disabled={resendStatus === "loading" || resendStatus === "success"}
+									className="text-[#2563EB] hover:text-[#1E40AF] font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									{resendStatus === "loading" ? "Sending..." : resendStatus === "success" ? "Sent!" : "Resend Verification Link"}
+								</button>
+								{resendMessage && (
+									<p className={`text-xs mt-2 ${resendStatus === "error" ? "text-red-600" : "text-green-600"}`}>
+										{resendMessage}
+									</p>
+								)}
+							</div>
+						)}
 					</div>
 				</div>
 			</div>
@@ -121,11 +162,12 @@ export default function VerifyEmailPage() {
 						{error || "The verification link is invalid or has expired."}
 					</p>
 					<div className="flex flex-col gap-3">
+						
 						<Link
 							href="/login"
 							className="inline-block py-3 px-6 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md transition"
 						>
-							Sign In & Resend
+							Sign In
 						</Link>
 						<Link
 							href="/register"
@@ -133,6 +175,24 @@ export default function VerifyEmailPage() {
 						>
 							Create New Account
 						</Link>
+						
+						{user?.email && (
+							<div className="mt-4 border-t pt-4">
+								<p className="text-sm text-gray-500 mb-2">Want to try again?</p>
+								<button
+									onClick={handleResendLink}
+									disabled={resendStatus === "loading" || resendStatus === "success"}
+									className="text-[#2563EB] hover:text-[#1E40AF] font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+								>
+									{resendStatus === "loading" ? "Sending..." : resendStatus === "success" ? "Link Sent!" : "Resend Verification Link"}
+								</button>
+								{resendMessage && (
+									<p className={`text-xs mt-2 ${resendStatus === "error" ? "text-red-600" : "text-green-600"}`}>
+										{resendMessage}
+									</p>
+								)}
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

@@ -218,13 +218,24 @@ export const useAuthStore = create<AuthState>()(
 			getVerificationRedirect: () => {
 				const { user } = get();
 				if (!user) return "/login";
+
+				console.log("Check Redirect - User:", { 
+					email: user.email, 
+					status: user.verificationStatus, 
+					emailVerified: user.emailVerified 
+				});
+
+				// 0. Verified users always have access (bypass other checks)
+				if (user.verificationStatus === "verified") {
+					return null;
+				}
 				
 				// 1. Email not verified
 				if (!user.emailVerified) {
 					return "/verify-email";
 				}
 				
-			// 1.5 Contact Details (Phone)
+				// 1.5 Contact Details (Phone)
 				// If strictly enforcing phone verification (user said phone verification is mandatory via OTP)
 				// Check if phone exists and is verified? Or just exists?
 				// User wants "Screen 4A". I'll route there if phone is missing.
@@ -273,14 +284,7 @@ export const useAuthStore = create<AuthState>()(
 					return "/account-suspended";
 				}
 
-				// 6. Verified users have full access
-				// Profile completion is encouraged but not enforced after KYC verification
-				// The dashboard will show a "complete your profile" banner if needed
-				if (user.verificationStatus === "verified") {
-					return null; // Allow dashboard access
-				}
-
-				// 7. All complete -> Allow access
+				// 6. All complete -> Allow access
 				return null;
 			},
 		}),

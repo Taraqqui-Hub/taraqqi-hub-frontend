@@ -7,6 +7,7 @@ import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
+import { authApi } from "@/lib/api";
 
 type UserType = "individual" | "employer";
 
@@ -32,6 +33,9 @@ export default function RegisterPage() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [success, setSuccess] = useState(false);
 	
+	const [resendStatus, setResendStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+	const [resendMessage, setResendMessage] = useState<string>("");
+
 	// Redirect if already authenticated
 	if (isAuthenticated) {
 		router.replace("/dashboard");
@@ -51,6 +55,25 @@ export default function RegisterPage() {
 			setSuccess(true);
 		} catch (err: any) {
 			// Handle errors
+		}
+	};
+
+	const handleResendLink = async () => {
+		if (!email) return;
+
+		setResendStatus("loading");
+		try {
+			await authApi.resendVerification(email);
+			setResendStatus("success");
+			setResendMessage("Verification link sent!");
+			setTimeout(() => setResendStatus("idle"), 5000);
+		} catch (err: any) {
+			setResendStatus("error");
+			setResendMessage(err.response?.data?.error || "Failed to resend link");
+			setTimeout(() => {
+				setResendStatus("idle");
+				setResendMessage("");
+			}, 3000);
 		}
 	};
 
@@ -81,6 +104,22 @@ export default function RegisterPage() {
 						>
 							Go to Login
 						</Link>
+
+						<div className="mt-6 border-t pt-4">
+							<p className="text-sm text-gray-500 mb-2">Didn&apos;t receive the email?</p>
+							<button
+								onClick={handleResendLink}
+								disabled={resendStatus === "loading" || resendStatus === "success"}
+								className="text-[#2563EB] hover:text-[#1E40AF] font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{resendStatus === "loading" ? "Sending..." : resendStatus === "success" ? "Sent!" : "Resend Verification Link"}
+							</button>
+							{resendMessage && (
+								<p className={`text-xs mt-2 ${resendStatus === "error" ? "text-red-600" : "text-green-600"}`}>
+									{resendMessage}
+								</p>
+							)}
+						</div>
 					</div>
 				</div>
 			</div>
