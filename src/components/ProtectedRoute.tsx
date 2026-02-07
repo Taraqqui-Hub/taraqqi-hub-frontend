@@ -31,7 +31,14 @@ export default function ProtectedRoute({
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
-			router.replace(`/login?redirect=${encodeURIComponent(router.asPath)}`);
+			// Ensure we don't redirect to an un-interpolated path (containing [brackets])
+			// which would cause a runtime error on login redirect
+			const currentPath = router.asPath;
+			if (currentPath && !currentPath.includes("[") && !currentPath.includes("]")) {
+				router.replace(`/login?redirect=${encodeURIComponent(currentPath)}`);
+			} else {
+				router.replace("/login");
+			}
 		}
 	}, [isLoading, isAuthenticated, router]);
 

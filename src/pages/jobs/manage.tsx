@@ -46,7 +46,9 @@ export default function ManageJobsPage() {
   const loadJobs = async () => {
     try {
       const response = await api.get("/employer/jobs");
-      setJobs(response?.data?.payload?.jobs || response?.data?.jobs || []);
+      const data = response?.data;
+      const jobList = Array.isArray(data?.payload) ? data.payload : (data?.payload?.jobs || data?.jobs || []);
+      setJobs(jobList);
     } catch (err) {
       console.error("Failed to load jobs", err);
     } finally {

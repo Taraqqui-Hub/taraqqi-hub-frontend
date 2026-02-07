@@ -53,7 +53,7 @@ api.interceptors.response.use(
 			try {
 				// Try to refresh token
 				const response = await api.post("/auth/refresh");
-				const newToken = response.data.payload?.accessToken;
+				const newToken = response?.data?.payload?.accessToken;
 
 				if (newToken) {
 					setAccessToken(newToken);

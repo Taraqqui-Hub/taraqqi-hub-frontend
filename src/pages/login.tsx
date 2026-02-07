@@ -37,8 +37,16 @@ export default function LoginPage() {
 			if (redirect) {
 				router.replace(redirect);
 			} else {
-				const returnUrl = router.query.redirect as string;
-				router.replace(returnUrl || "/dashboard");
+				const { redirect } = router.query;
+				const returnUrl = Array.isArray(redirect) ? redirect[0] : redirect;
+				
+				// Check if returnUrl contains un-interpolated Next.js dynamic segments (e.g., "[id]")
+				// This prevents Runtime Error: missing query values
+				if (returnUrl && !returnUrl.includes("[") && !returnUrl.includes("]")) {
+					router.replace(returnUrl);
+				} else {
+					router.replace("/dashboard");
+				}
 			}
 		}
 	}, [isLoading, isAuthenticated, user, router, getVerificationRedirect]);

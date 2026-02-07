@@ -47,6 +47,8 @@ export default function ApplicantsPage() {
 	const [loading, setLoading] = useState(true);
 	const [unlockCost, setUnlockCost] = useState(50);
 
+	const [error, setError] = useState<string | null>(null);
+
 	useEffect(() => {
 		if (id) {
 			loadApplicants();
@@ -56,12 +58,24 @@ export default function ApplicantsPage() {
 
 	const loadApplicants = async () => {
 		try {
-			const response = await api.get(`/employer/jobs/${id}/applicants`);
+			setError(null);
+			const jobId = Array.isArray(id) ? id[0] : id;
+			if (!jobId) return;
+
+			const response = await api.get(`/employer/jobs/${jobId}/applicants`);
+			console.log("Applicants data:", response.data);
+			
 			const payload = response.data?.payload ?? response.data;
+			
+			if (!payload) {
+				throw new Error("Invalid response format");
+			}
+
 			setJob(payload.job);
 			setApplicants(payload.applicants || []);
-		} catch (err) {
+		} catch (err: any) {
 			console.error("Failed to load applicants", err);
+			setError(err.response?.data?.message || err.message || "Failed to load applicants");
 		} finally {
 			setLoading(false);
 		}
@@ -70,7 +84,9 @@ export default function ApplicantsPage() {
 	const loadUnlockCost = async () => {
 		try {
 			const response = await api.get("/resume/unlock/cost");
-			setUnlockCost(response.data.cost);
+			// Check checks
+			const payload = response.data?.payload ?? response.data;
+			setUnlockCost(payload?.cost || 50);
 		} catch (err) {
 			console.error("Failed to get unlock cost", err);
 		}
@@ -99,7 +115,9 @@ export default function ApplicantsPage() {
 
 		try {
 			const response = await api.post(`/resume/unlock/${profileId}`);
-			alert(`Unlocked! Phone: ${response.data.profile.phone}, Email: ${response.data.profile.email}`);
+			const payload = response.data?.payload ?? response.data;
+			const profile = payload.profile || response.data.profile;
+			alert(`Unlocked! Phone: ${profile.phone}, Email: ${profile.email}`);
 		} catch (err: any) {
 			alert(err.response?.data?.message || "Failed to unlock profile");
 		}
@@ -131,6 +149,12 @@ export default function ApplicantsPage() {
 						</h1>
 					</div>
 
+					{error && (
+						<div className="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+							<span className="font-medium">Error!</span> {error}
+						</div>
+					)}
+
 					{loading ? (
 						<div className="text-center py-12">
 							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2563EB] mx-auto"></div>
@@ -144,7 +168,7 @@ export default function ApplicantsPage() {
 								>
 									<div className="flex items-start gap-4">
 										{/* Avatar */}
-										{app.profile.profilePhotoUrl ? (
+										{app.profile?.profilePhotoUrl ? (
 											<img
 												src={app.profile.profilePhotoUrl}
 												alt=""
@@ -160,12 +184,12 @@ export default function ApplicantsPage() {
 											<div className="flex items-start justify-between">
 												<div>
 													<h3 className="font-semibold text-slate-900">
-														{app.profile.firstName} {app.profile.lastName}
+														{app.profile?.firstName} {app.profile?.lastName}
 													</h3>
-													<p className="text-sm text-slate-500">{app.profile.headline}</p>
+													<p className="text-sm text-slate-500">{app.profile?.headline}</p>
 													<div className="flex items-center text-sm text-slate-400 mt-1 gap-3">
-														<span>📍 {app.profile.city}</span>
-														<span>{app.profile.experienceYears || 0} yrs exp</span>
+														<span>📍 {app.profile?.city}</span>
+														<span>{app.profile?.experienceYears || 0} yrs exp</span>
 													</div>
 												</div>
 												<span
@@ -178,7 +202,7 @@ export default function ApplicantsPage() {
 											</div>
 
 											{/* Skills */}
-											{app.profile.skills && app.profile.skills.length > 0 && (
+											{app.profile?.skills && app.profile.skills.length > 0 && (
 												<div className="flex flex-wrap gap-1 mt-3">
 													{app.profile.skills.slice(0, 5).map((skill, i) => (
 														<span
@@ -218,7 +242,7 @@ export default function ApplicantsPage() {
 													</select>
 
 													<button
-														onClick={() => handleUnlock(app.profile.id)}
+														onClick={() => handleUnlock(app.profile?.id)}
 														className="text-sm px-3 py-1 bg-[#2563EB] text-white rounded hover:bg-[#1E40AF]"
 													>
 														Unlock Contact (₹{unlockCost})
