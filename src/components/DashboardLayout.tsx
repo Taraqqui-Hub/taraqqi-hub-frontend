@@ -23,6 +23,7 @@ import {
 	Shield,
 	Wallet,
 	Bell,
+	Bookmark,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -37,7 +38,9 @@ const getNavItems = (userType: string) => {
 			{ href: "/profile", label: "Profile", icon: User },
 			{ href: "/jobs", label: "Browse Jobs", icon: Briefcase },
 			{ href: "/applications", label: "Applications", icon: FileText },
-			{ href: "/wallet", label: "Wallet", icon: Wallet },
+
+			// { href: "/wallet", label: "Wallet", icon: Wallet },
+			{ href: "/saved-jobs", label: "Saved Jobs", icon: Bookmark },
 		];
 	}
 	return [

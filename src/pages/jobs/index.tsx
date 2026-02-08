@@ -54,6 +54,7 @@ interface Job {
 	viewsCount: number | null;
 	applicationsCount: number | null;
 	hasApplied?: boolean;
+	isSaved?: boolean;
 	badges: string[];
 }
 
@@ -210,6 +211,27 @@ export default function BrowseJobsPage() {
 			console.error("Failed to load jobs", err);
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const toggleSave = async (e: React.MouseEvent, job: Job) => {
+		e.preventDefault();
+		e.stopPropagation();
+
+		// Optimistic update
+		const wasSaved = job.isSaved;
+		setJobs(prev => prev.map(j => j.id === job.id ? { ...j, isSaved: !wasSaved } : j));
+
+		try {
+			if (wasSaved) {
+				await api.delete(`/saved-jobs/${job.uuid}`);
+			} else {
+				await api.post("/saved-jobs", { jobId: job.uuid });
+			}
+		} catch (error) {
+			console.error("Failed to toggle save", error);
+			// Revert on failure
+			setJobs(prev => prev.map(j => j.id === job.id ? { ...j, isSaved: wasSaved } : j));
 		}
 	};
 
@@ -542,8 +564,15 @@ export default function BrowseJobsPage() {
 														<p className="text-sm font-medium text-slate-600 mb-2">{job.category || "Technology Company"}</p>
 													</div>
 													{/* Actions */}
-													<button className="text-slate-400 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-full transition-colors">
-														<Bookmark size={20} />
+													<button 
+														onClick={(e) => toggleSave(e, job)}
+														className={`p-2 rounded-full transition-colors ${
+															job.isSaved 
+																? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100" 
+																: "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+														}`}
+													>
+														<Bookmark size={20} fill={job.isSaved ? "currentColor" : "none"} />
 													</button>
 												</div>
 

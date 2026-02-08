@@ -51,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
 			// Initial state
 			user: null,
 			isAuthenticated: false,
-			isLoading: false,
+			isLoading: true,
 			error: null,
 
 			// Login with email/password
@@ -126,9 +126,9 @@ export const useAuthStore = create<AuthState>()(
 
 			// Check auth status on app load
 			checkAuth: async () => {
-				const state = get();
 				// Prevent double invocation which causes race conditions with refresh tokens
-				if (state.isLoading) return;
+				// Removing this check to ensure checkAuth runs on mount even if initial state is loading
+				// if (state.isLoading) return;
 
 				set({ isLoading: true });
 				try {

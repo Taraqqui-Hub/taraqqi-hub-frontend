@@ -125,6 +125,7 @@ export default function ProfileWizard() {
 				state: up?.state || jp?.state || "",
 				pincode: up?.pincode || jp?.pincode || "",
 				addressLine1: jp?.address || "", // Map jobseekerProfile.address to addressLine1
+				addressLine2: jp?.addressLine2 || "",
 				locality: "", // Not stored in schema, but kept for form compatibility
 			};
 			setAddressData(addressInfo);

@@ -25,9 +25,7 @@ export default function ProtectedRoute({
 	const { user, isAuthenticated, isLoading, checkAuth, hasPermission, getVerificationRedirect } =
 		useAuthStore();
 
-	useEffect(() => {
-		checkAuth();
-	}, [checkAuth]);
+
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
