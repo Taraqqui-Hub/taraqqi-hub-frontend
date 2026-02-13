@@ -26,6 +26,11 @@ interface Applicant {
 		experienceYears: number;
 		skills: string[];
 		profilePhotoUrl: string | null;
+		resumeUrl: string | null;
+	};
+	contact?: {
+		email: string;
+		phone: string;
 	};
 }
 
@@ -45,14 +50,12 @@ export default function ApplicantsPage() {
 	const [job, setJob] = useState<{ id: string; title: string } | null>(null);
 	const [applicants, setApplicants] = useState<Applicant[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [unlockCost, setUnlockCost] = useState(50);
 
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (id) {
 			loadApplicants();
-			loadUnlockCost();
 		}
 	}, [id]);
 
@@ -63,7 +66,6 @@ export default function ApplicantsPage() {
 			if (!jobId) return;
 
 			const response = await api.get(`/employer/jobs/${jobId}/applicants`);
-			console.log("Applicants data:", response.data);
 			
 			const payload = response.data?.payload ?? response.data;
 			
@@ -81,17 +83,6 @@ export default function ApplicantsPage() {
 		}
 	};
 
-	const loadUnlockCost = async () => {
-		try {
-			const response = await api.get("/resume/unlock/cost");
-			// Check checks
-			const payload = response.data?.payload ?? response.data;
-			setUnlockCost(payload?.cost || 50);
-		} catch (err) {
-			console.error("Failed to get unlock cost", err);
-		}
-	};
-
 	const handleStatusChange = async (applicationId: string, status: string) => {
 		try {
 			await api.patch(`/employer/jobs/applications/${applicationId}/status`, { status });
@@ -102,34 +93,24 @@ export default function ApplicantsPage() {
 	};
 
 	const handleViewProfile = async (applicationId: string) => {
+		// This tracks the view and updates status to 'reviewed'
 		try {
 			await api.post(`/employer/jobs/applications/${applicationId}/view`);
+			// We don't necessarily need to reload, just update the local state if needed
+			// But sticking to reload for consistency
 			loadApplicants();
 		} catch (err: any) {
-			alert(err.response?.data?.error || "Failed to record view");
-		}
-	};
-
-	const handleUnlock = async (profileId: string) => {
-		if (!confirm(`This will cost ₹${unlockCost}. Continue?`)) return;
-
-		try {
-			const response = await api.post(`/resume/unlock/${profileId}`);
-			const payload = response.data?.payload ?? response.data;
-			const profile = payload.profile || response.data.profile;
-			alert(`Unlocked! Phone: ${profile.phone}, Email: ${profile.email}`);
-		} catch (err: any) {
-			alert(err.response?.data?.message || "Failed to unlock profile");
+			console.error("Failed to record view", err);
 		}
 	};
 
 	const statusColors: Record<string, string> = {
 		pending: "bg-yellow-100 text-yellow-700",
 		reviewed: "bg-blue-100 text-blue-700",
-		shortlisted: "bg-green-100 text-green-700",
-		interview: "bg-blue-100 text-[#1E40AF]",
+		shortlisted: "bg-purple-100 text-purple-700",
+		interview: "bg-indigo-100 text-indigo-700",
 		offered: "bg-emerald-100 text-emerald-700",
-		hired: "bg-green-200 text-green-800",
+		hired: "bg-green-100 text-green-700",
 		rejected: "bg-red-100 text-red-700",
 	};
 
@@ -166,48 +147,85 @@ export default function ApplicantsPage() {
 									key={app.id}
 									className="bg-white rounded-xl p-5 shadow-sm border border-slate-200"
 								>
-									<div className="flex items-start gap-4">
+									<div className="flex flex-col md:flex-row md:items-start gap-4">
 										{/* Avatar */}
 										{app.profile?.profilePhotoUrl ? (
 											<img
 												src={app.profile.profilePhotoUrl}
 												alt=""
-												className="w-14 h-14 rounded-full object-cover"
+												className="w-16 h-16 rounded-full object-cover"
 											/>
 										) : (
-											<div className="w-14 h-14 bg-slate-200 rounded-full flex items-center justify-center text-xl">
+											<div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center text-2xl">
 												👤
 											</div>
 										)}
 
-										<div className="flex-1">
-											<div className="flex items-start justify-between">
+										<div className="flex-1 w-full">
+											<div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
 												<div>
-													<h3 className="font-semibold text-slate-900">
+													<h3 className="text-lg font-bold text-slate-900">
 														{app.profile?.firstName} {app.profile?.lastName}
 													</h3>
-													<p className="text-sm text-slate-500">{app.profile?.headline}</p>
-													<div className="flex items-center text-sm text-slate-400 mt-1 gap-3">
-														<span>📍 {app.profile?.city}</span>
-														<span>{app.profile?.experienceYears || 0} yrs exp</span>
+													<p className="text-slate-600">{app.profile?.headline}</p>
+													
+													<div className="flex flex-wrap items-center text-sm text-slate-500 mt-2 gap-4">
+														<span className="flex items-center gap-1">
+															📍 {app.profile?.city || "Location not specified"}
+														</span>
+														<span className="flex items-center gap-1">
+															💼 {app.profile?.experienceYears || 0} years exp
+														</span>
+														{app.expectedSalary && (
+															<span className="flex items-center gap-1">
+																💰 Expected: {app.expectedSalary}
+															</span>
+														)}
+													</div>
+
+													<div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+														{app.contact?.email && (
+															<div className="flex items-center gap-2 text-slate-700">
+																✉️ <a href={`mailto:${app.contact.email}`} className="hover:underline">{app.contact.email}</a>
+															</div>
+														)}
+														{app.contact?.phone && (
+															<div className="flex items-center gap-2 text-slate-700">
+																📞 <a href={`tel:${app.contact.phone}`} className="hover:underline">{app.contact.phone}</a>
+															</div>
+														)}
 													</div>
 												</div>
-												<span
-													className={`px-2 py-1 text-xs rounded ${
-														statusColors[app.status] || "bg-slate-100"
-													}`}
-												>
-													{app.status === "reviewed" ? "Viewed" : app.status === "hired" ? "Selected" : app.status}
-												</span>
+
+												<div className="flex flex-col items-end gap-2">
+													<span
+														className={`px-3 py-1 text-sm font-medium rounded-full ${
+															statusColors[app.status] || "bg-slate-100 text-slate-600"
+														}`}
+													>
+														{app.status === "reviewed" ? "Viewed" : app.status === "hired" ? "Selected" : app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+													</span>
+													<span className="text-xs text-slate-400">
+														Applied {new Date(app.appliedAt).toLocaleDateString()}
+													</span>
+												</div>
 											</div>
+
+											{/* Cover Letter */}
+											{app.coverLetter && (
+												<div className="mt-4 p-3 bg-slate-50 rounded-lg text-sm text-slate-700">
+													<p className="font-semibold mb-1 text-xs text-slate-500 uppercase">Cover Letter</p>
+													{app.coverLetter}
+												</div>
+											)}
 
 											{/* Skills */}
 											{app.profile?.skills && app.profile.skills.length > 0 && (
-												<div className="flex flex-wrap gap-1 mt-3">
-													{app.profile.skills.slice(0, 5).map((skill, i) => (
+												<div className="flex flex-wrap gap-2 mt-4">
+													{app.profile.skills.slice(0, 8).map((skill, i) => (
 														<span
 															key={i}
-															className="px-2 py-0.5 text-xs bg-slate-100 text-slate-600 rounded"
+															className="px-2.5 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100"
 														>
 															{skill}
 														</span>
@@ -215,44 +233,45 @@ export default function ApplicantsPage() {
 												</div>
 											)}
 
-											{/* Actions */}
-											<div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+											{/* Action Bar */}
+											<div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
+												<div className="flex items-center gap-3">
+													{app.profile?.resumeUrl && (
+														<a
+															href={app.profile.resumeUrl}
+															target="_blank"
+															rel="noopener noreferrer"
+															className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition shadow-sm"
+															onClick={() => handleViewProfile(app.id)}
+														>
+															📄 View Resume
+														</a>
+													)}
+													
+													{!app.viewedAt && (
+														<button
+															onClick={() => handleViewProfile(app.id)}
+															className="px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
+														>
+															Mark as Viewed
+														</button>
+													)}
+												</div>
+
 												<div className="flex items-center gap-2">
-													<button
-														onClick={() => handleViewProfile(app.id)}
-														className="text-sm px-3 py-1 border border-slate-300 rounded hover:bg-slate-50"
-													>
-														View profile
-													</button>
+													<label className="text-sm font-medium text-slate-600">Status:</label>
 													<select
-														value=""
-														onChange={(e) => {
-															if (e.target.value) {
-																handleStatusChange(app.id, e.target.value);
-															}
-														}}
-														className="text-sm border border-slate-300 rounded px-2 py-1"
+														value={app.status}
+														onChange={(e) => handleStatusChange(app.id, e.target.value)}
+														className="text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
 													>
-														<option value="">Change Status</option>
 														{statusOptions.map((opt) => (
 															<option key={opt.value} value={opt.value}>
 																{opt.label}
 															</option>
 														))}
 													</select>
-
-													<button
-														onClick={() => handleUnlock(app.profile?.id)}
-														className="text-sm px-3 py-1 bg-[#2563EB] text-white rounded hover:bg-[#1E40AF]"
-													>
-														Unlock Contact (₹{unlockCost})
-													</button>
 												</div>
-
-												<span className="text-xs text-slate-400">
-													Applied {new Date(app.appliedAt).toLocaleDateString()}
-													{app.viewedAt && " • Viewed"}
-												</span>
 											</div>
 										</div>
 									</div>
@@ -261,7 +280,9 @@ export default function ApplicantsPage() {
 						</div>
 					) : (
 						<div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-							<p className="text-slate-500">No applicants yet</p>
+							<div className="text-4xl mb-4">📭</div>
+							<h3 className="text-lg font-medium text-slate-900">No applicants yet</h3>
+							<p className="text-slate-500 mt-1">When people apply to this job, they will appear here.</p>
 						</div>
 					)}
 				</div>

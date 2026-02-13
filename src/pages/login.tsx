@@ -42,10 +42,14 @@ export default function LoginPage() {
 				
 				// Check if returnUrl contains un-interpolated Next.js dynamic segments (e.g., "[id]")
 				// This prevents Runtime Error: missing query values
-				if (returnUrl && !returnUrl.includes("[") && !returnUrl.includes("]")) {
+			if (returnUrl && !returnUrl.includes("[") && !returnUrl.includes("]")) {
 					router.replace(returnUrl);
 				} else {
-					router.replace("/dashboard");
+					if (user.userType === "employer") {
+						router.replace("/employer/dashboard");
+					} else {
+						router.replace("/dashboard");
+					}
 				}
 			}
 		}

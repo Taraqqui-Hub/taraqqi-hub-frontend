@@ -1,159 +1,115 @@
 /**
- * Gamification Elements
- * XP bar, level indicators, achievement badges, and celebration effects
+ * Journey Elements
+ * Progress bar, benefit toasts, and celebration effects
+ * Replaces old XP/points gamification with benefit-driven UX
  */
 
 import { useEffect, useState } from "react";
-import { 
-	Star, 
-	Trophy, 
-	Sparkles, 
-	Award,
+import {
+	CheckCircle,
+	Clock,
 	TrendingUp,
-	Flame
+	Sparkles,
 } from "lucide-react";
 
 // ============================================
-// XP Progress Bar
+// Journey Progress Bar
 // ============================================
 
-interface XPProgressBarProps {
-	currentXP: number;
-	maxXP: number;
-	level: number;
-	levelName: string;
+const STEP_LABELS = ["Basic Info", "Location", "Education", "Skills", "Experience"];
+
+interface JourneyProgressBarProps {
+	completionPercentage: number;
+	completedSteps: number;
+	totalSteps: number;
 	animate?: boolean;
-	compact?: boolean;
 }
 
-export function XPProgressBar({ currentXP, maxXP, level, levelName, animate = true, compact = false }: XPProgressBarProps) {
-	const [displayXP, setDisplayXP] = useState(animate ? 0 : currentXP);
-	const percentage = Math.min(100, Math.round((currentXP / maxXP) * 100));
+export function JourneyProgressBar({
+	completionPercentage,
+	completedSteps,
+	totalSteps,
+	animate = true,
+}: JourneyProgressBarProps) {
+	const [displayPercentage, setDisplayPercentage] = useState(animate ? 0 : completionPercentage);
 
 	useEffect(() => {
 		if (animate) {
-			const timer = setTimeout(() => setDisplayXP(currentXP), 100);
+			const timer = setTimeout(() => setDisplayPercentage(completionPercentage), 100);
 			return () => clearTimeout(timer);
+		} else {
+			setDisplayPercentage(completionPercentage);
 		}
-	}, [currentXP, animate]);
+	}, [completionPercentage, animate]);
 
-	const displayPercentage = Math.min(100, Math.round((displayXP / maxXP) * 100));
-
-	// Compact variant - just a thin progress bar
-	if (compact) {
-		return (
-			<div className="xp-progress-compact">
-				<div className="relative h-2 bg-gray-100 rounded-full overflow-hidden">
-					<div 
-						className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-700 ease-out"
-						style={{ width: `${displayPercentage}%` }}
-					/>
-				</div>
-			</div>
-		);
-	}
+	const remainingSteps = totalSteps - completedSteps;
+	const estimatedMinutes = remainingSteps * 2; // ~2 min per step
 
 	return (
-		<div className="xp-progress-container">
+		<div className="journey-progress">
+			{/* Status Text */}
 			<div className="flex items-center justify-between mb-2">
-				<div className="flex items-center gap-3">
-					<LevelBadge level={level} />
-					<div>
-						<p className="text-sm font-semibold text-gray-800">{levelName}</p>
-						<p className="text-xs text-gray-500">Level {level}</p>
+				<div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+					<TrendingUp size={16} className="text-blue-600" />
+					<span>{Math.round(displayPercentage)}% Complete</span>
+				</div>
+				{remainingSteps > 0 && (
+					<div className="flex items-center gap-1 text-xs text-gray-500">
+						<Clock size={12} />
+						<span>~{estimatedMinutes} min left</span>
 					</div>
-				</div>
-				<div className="text-right">
-					<p className="text-lg font-bold text-blue-600">{displayXP} Points</p>
-					<p className="text-xs text-gray-500">Out of {maxXP} Points</p>
-				</div>
+				)}
 			</div>
-			
-			<div className="relative h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-				<div 
-					className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 rounded-full transition-all duration-1000 ease-out"
-					style={{ width: `${displayPercentage}%` }}
-				/>
-				{/* Shine effect */}
-				<div 
-					className="absolute inset-y-0 left-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transition-all duration-1000"
+
+			{/* Progress Bar */}
+			<div className="relative h-2.5 bg-gray-100 rounded-full overflow-hidden">
+				<div
+					className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-1000 ease-out"
 					style={{ width: `${displayPercentage}%` }}
 				/>
 			</div>
-			
-			<div className="flex justify-between mt-1 text-[10px] text-gray-400">
-				<span>Start</span>
-				<span>{displayPercentage}% Complete</span>
-				<span>Complete</span>
+
+			{/* Labeled Step Milestones */}
+			<div className="flex justify-between mt-3 gap-1">
+				{STEP_LABELS.map((label, i) => (
+					<div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
+						<div
+							className={`w-3 h-3 rounded-full transition-all duration-300 flex items-center justify-center ${
+								i < completedSteps
+									? "bg-blue-500"
+									: i === completedSteps
+									? "bg-blue-300 ring-4 ring-blue-100"
+									: "bg-gray-200"
+							}`}
+						/>
+						<span className={`text-[9px] font-medium text-center leading-tight ${
+							i < completedSteps
+								? "text-blue-600"
+								: i === completedSteps
+								? "text-blue-500"
+								: "text-gray-400"
+						}`}>{label}</span>
+					</div>
+				))}
 			</div>
 		</div>
 	);
 }
 
-
 // ============================================
-// Level Badge
-// ============================================
-
-interface LevelBadgeProps {
-	level: number;
-	size?: "sm" | "md" | "lg";
-}
-
-export function LevelBadge({ level, size = "md" }: LevelBadgeProps) {
-	const colors = [
-		"from-gray-400 to-gray-500", // Level 1
-		"from-green-400 to-green-600", // Level 2
-		"from-blue-400 to-blue-600", // Level 3
-		"from-purple-400 to-purple-600", // Level 4
-		"from-yellow-400 to-orange-500", // Level 5
-	];
-	
-	const sizeClasses = {
-		sm: "w-8 h-8",
-		md: "w-12 h-12",
-		lg: "w-16 h-16",
-	};
-
-	const iconSizes = {
-		sm: 16,
-		md: 24,
-		lg: 32,
-	};
-
-	return (
-		<div className={`
-			${sizeClasses[size]}
-			bg-gradient-to-br ${colors[level - 1] || colors[0]}
-			rounded-xl shadow-lg
-			flex items-center justify-center
-			text-white font-bold
-			transform hover:scale-110 transition-transform
-			relative overflow-hidden
-		`}>
-			{/* Shine effect */}
-			<div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-			<Star size={iconSizes[size]} className="relative z-10" fill="currentColor" />
-		</div>
-	);
-}
-
-// ============================================
-// Achievement Badge (appears when completing a section)
+// Benefit Toast (replaces Achievement Badge)
 // ============================================
 
-interface AchievementBadgeProps {
-	title: string;
-	xp: number;
-	icon: React.ReactNode;
+interface BenefitToastProps {
+	message: string;
 	show: boolean;
 	onClose: () => void;
 }
 
-export function AchievementBadge({ title, xp, icon, show, onClose }: AchievementBadgeProps) {
+export function BenefitToast({ message, show, onClose }: BenefitToastProps) {
 	useEffect(() => {
 		if (show) {
-			const timer = setTimeout(onClose, 3000);
+			const timer = setTimeout(onClose, 3500);
 			return () => clearTimeout(timer);
 		}
 	}, [show, onClose]);
@@ -161,28 +117,19 @@ export function AchievementBadge({ title, xp, icon, show, onClose }: Achievement
 	if (!show) return null;
 
 	return (
-		<div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-			<div className="achievement-popup pointer-events-auto">
-				<div className="bg-white rounded-2xl shadow-2xl p-6 border-4 border-yellow-400 animate-bounce-in">
-					<div className="text-center">
-						<div className="w-16 h-16 mx-auto mb-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white">
-							{icon}
-						</div>
-						<p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Congratulations!</p>
-						<h3 className="text-lg font-bold text-gray-800 mb-2">{title}</h3>
-						<div className="inline-flex items-center gap-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-1 rounded-full text-sm font-bold">
-							<TrendingUp size={14} />
-							+{xp} Points
-						</div>
-					</div>
+		<div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
+			<div className="bg-white rounded-xl shadow-2xl border border-green-200 px-5 py-3 flex items-center gap-3 max-w-md">
+				<div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+					<CheckCircle size={18} className="text-green-600" />
 				</div>
+				<p className="text-sm font-medium text-gray-800">{message}</p>
 			</div>
 		</div>
 	);
 }
 
 // ============================================
-// Confetti Celebration
+// Confetti Celebration (kept from original)
 // ============================================
 
 interface ConfettiProps {
@@ -194,7 +141,7 @@ export function Confetti({ show }: ConfettiProps) {
 
 	const particles = Array.from({ length: 50 }, (_, i) => ({
 		id: i,
-		color: ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][i % 5],
+		color: ["#2563EB", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"][i % 5],
 		left: `${Math.random() * 100}%`,
 		delay: Math.random() * 0.5,
 		size: 4 + Math.random() * 6,
@@ -202,17 +149,17 @@ export function Confetti({ show }: ConfettiProps) {
 
 	return (
 		<div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-			{particles.map(p => (
+			{particles.map((p) => (
 				<div
 					key={p.id}
 					className="absolute animate-confetti"
 					style={{
 						left: p.left,
-						top: '-10px',
+						top: "-10px",
 						width: p.size,
 						height: p.size,
 						backgroundColor: p.color,
-						borderRadius: Math.random() > 0.5 ? '50%' : '0',
+						borderRadius: Math.random() > 0.5 ? "50%" : "0",
 						animationDelay: `${p.delay}s`,
 					}}
 				/>
@@ -222,63 +169,69 @@ export function Confetti({ show }: ConfettiProps) {
 }
 
 // ============================================
-// Section Progress Indicator (Mini)
+// Persuasion Popup (shows at 70%)
 // ============================================
 
-interface SectionProgressProps {
-	completed: boolean;
-	inProgress?: boolean;
-	xp: number;
-	optional?: boolean;
+interface PersuasionPopupProps {
+	show: boolean;
+	onClose: () => void;
 }
 
-export function SectionProgress({ completed, inProgress, xp, optional }: SectionProgressProps) {
+export function PersuasionPopup({ show, onClose }: PersuasionPopupProps) {
+	if (!show) return null;
+
 	return (
-		<div className="flex items-center gap-2">
-			<div className={`
-				w-6 h-6 rounded-full flex items-center justify-center
-				${completed 
-					? 'bg-gradient-to-br from-green-400 to-green-600 text-white' 
-					: inProgress 
-						? 'bg-blue-100 text-blue-600 animate-pulse' 
-						: 'bg-gray-100 text-gray-400'}
-			`}>
-				{completed ? <Award size={14} /> : inProgress ? <Sparkles size={14} /> : <Star size={14} />}
+		<div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 animate-fadeIn">
+			<div className="bg-white rounded-2xl shadow-2xl p-6 mx-4 max-w-sm text-center">
+				<div className="w-14 h-14 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
+					<TrendingUp size={28} className="text-blue-600" />
+				</div>
+				<h3 className="text-lg font-bold text-gray-900 mb-2">
+					You&apos;re almost there!
+				</h3>
+				<p className="text-sm text-gray-600 mb-4">
+					Complete your profile to increase match accuracy by <span className="font-semibold text-blue-600">3x</span>. Just a few more details!
+				</p>
+				<button
+					onClick={onClose}
+					className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all text-sm"
+				>
+					Let&apos;s finish it
+				</button>
 			</div>
-			<span className={`text-xs font-medium ${completed ? 'text-green-600' : 'text-gray-400'}`}>
-				{completed ? `+${xp}` : `${xp}`} Points
-			</span>
-			{optional && (
-				<span className="text-[10px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
-					Bonus
-				</span>
-			)}
 		</div>
 	);
 }
 
 // ============================================
-// Streak Counter
+// Privacy Badge
 // ============================================
 
-interface StreakCounterProps {
-	days: number;
+interface PrivacyBadgeProps {
+	text?: string;
 }
 
-export function StreakCounter({ days }: StreakCounterProps) {
+export function PrivacyBadge({ text = "Private & Secure" }: PrivacyBadgeProps) {
 	return (
-		<div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-full px-3 py-1">
-			<Flame size={18} className="text-orange-500" />
-			<span className="text-sm font-semibold text-orange-600">{days} Day Streak</span>
+		<div className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-full">
+			<Sparkles size={12} className="text-gray-400" />
+			<span>{text}</span>
 		</div>
 	);
 }
+
+// Keep backward compatibility for imports
+// Old named exports that other files might reference
+export const XPProgressBar = JourneyProgressBar as any;
+export const LevelBadge = () => null;
+export const AchievementBadge = () => null;
+export function SectionProgress() { return null; }
+export function StreakCounter() { return null; }
 
 export default {
-	XPProgressBar,
-	LevelBadge,
-	AchievementBadge,
+	JourneyProgressBar,
+	BenefitToast,
 	Confetti,
-	SectionProgress,
-	StreakCounter,
+	PersuasionPopup,
+	PrivacyBadge,
 };

@@ -210,7 +210,7 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 				</div>
 				<div>
 					<p className="text-sm font-medium text-gray-700">Profile Photo</p>
-					<p className="text-xs text-gray-500">Optional • Max 5MB</p>
+					<p className="text-xs text-blue-600">Profiles with photos get 2x more responses</p>
 				</div>
 			</div>
 

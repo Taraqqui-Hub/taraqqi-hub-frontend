@@ -99,9 +99,9 @@ export default function ExperienceSection({ records, onAdd, onDelete, onMarkFres
 				>
 					Actually, I do have some experience
 				</button>
-				<p className="mt-4 text-sm text-green-600 flex items-center justify-center gap-1">
+				<p className="mt-4 text-sm text-blue-600 flex items-center justify-center gap-1">
 					<Check size={16} />
-					Section complete! +25 Points
+					Your potential matters. We&apos;ll match entry-level roles for you.
 				</p>
 			</div>
 		);
@@ -241,14 +241,14 @@ export default function ExperienceSection({ records, onAdd, onDelete, onMarkFres
 								setShowForm(false);
 								if (records.length === 0) setIsFresher(false);
 							}}
-							className="flex-1 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all"
+							className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
 						>
 							Cancel
 						</button>
 						<button
 							onClick={handleAdd}
 							disabled={saving || !newRecord.companyName || !newRecord.jobTitle}
-							className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all"
+							className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all font-medium min-h-[48px]"
 						>
 							{saving ? "Adding..." : "Add Experience"}
 						</button>
@@ -256,11 +256,10 @@ export default function ExperienceSection({ records, onAdd, onDelete, onMarkFres
 				</div>
 			)}
 
-			{/* Completion hint */}
 			{records.length > 0 && (
-				<p className="text-center text-sm text-green-600 flex items-center justify-center gap-1">
+				<p className="text-center text-sm text-blue-600 flex items-center justify-center gap-1">
 					<Check size={16} />
-					You earned +25 Points for this section!
+					Your work story is now part of your profile.
 				</p>
 			)}
 		</div>

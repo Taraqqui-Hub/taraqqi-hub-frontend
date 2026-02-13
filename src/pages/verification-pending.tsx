@@ -16,9 +16,13 @@ export default function VerificationPendingPage() {
 		if (!isAuthenticated) {
 			router.replace("/login");
 		} else if (isVerified()) {
-			router.replace("/dashboard");
+			if (user?.userType === "employer") {
+				router.replace("/employer/dashboard");
+			} else {
+				router.replace("/dashboard");
+			}
 		}
-	}, [isAuthenticated, isVerified, router]);
+	}, [isAuthenticated, isVerified, router, user]);
 
 	if (!isAuthenticated || !user) {
 		return null;

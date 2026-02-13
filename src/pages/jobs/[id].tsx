@@ -30,8 +30,10 @@ import {
 	Twitter,
 	MessageCircle,
 	ArrowLeft,
-	MoreHorizontal
+	MoreHorizontal,
+	FileText
 } from "lucide-react";
+import FileUpload from "@/components/FileUpload";
 
 interface Job {
 	id: string;
@@ -69,6 +71,7 @@ interface Job {
 	isFeatured: boolean | null;
 	promotionType: string | null;
 	isUrgentHighlight: boolean | null;
+	isResumeRequired: boolean | null;
 	expiresAt: string | null;
 	viewsCount: number | null;
 	applicationsCount: number | null;
@@ -97,6 +100,7 @@ export default function JobDetailPage() {
 	const [coverLetter, setCoverLetter] = useState("");
 	const [expectedSalary, setExpectedSalary] = useState("");
 	const [noticePeriodDays, setNoticePeriodDays] = useState("");
+	const [resumeUrl, setResumeUrl] = useState("");
 	const [showShareMenu, setShowShareMenu] = useState(false);
 	const [isSaved, setIsSaved] = useState(false);
 	const [saveLoading, setSaveLoading] = useState(false);
@@ -149,12 +153,14 @@ export default function JobDetailPage() {
 				coverLetter: coverLetter || undefined,
 				expectedSalary: expectedSalary ? parseFloat(expectedSalary) : undefined,
 				noticePeriodDays: noticePeriodDays ? parseInt(noticePeriodDays, 10) : undefined,
+				resumeUrl: resumeUrl || undefined,
 			});
-
+			
 			setShowApplyModal(false);
 			setCoverLetter("");
 			setExpectedSalary("");
 			setNoticePeriodDays("");
+			setResumeUrl("");
 			loadJob(); // Refresh to show "Applied" status
 			alert("Application submitted successfully!");
 		} catch (err: any) {
@@ -601,6 +607,13 @@ export default function JobDetailPage() {
                                                             <span>Deadline: <strong>{new Date(job.applicationDeadline).toLocaleDateString()}</strong></span>
                                                         </div>
                                                     )}
+													
+													{job.isResumeRequired && (
+														<div className="p-3 bg-blue-50 rounded-xl border border-blue-100 text-blue-800 text-sm mb-4 flex items-center gap-2">
+															<FileText className="w-4 h-4" />
+															<span>Resume is <strong>required</strong> for this job</span>
+														</div>
+													)}
 												</div>
 												
 												<button
@@ -680,6 +693,23 @@ export default function JobDetailPage() {
 								</div>
 
 								<div className="space-y-6">
+									<div>
+										<label className="block text-sm font-semibold text-slate-700 mb-2">
+											Resume / CV {job.isResumeRequired ? <span className="text-red-500">*</span> : <span className="text-slate-400 font-normal">(Optional)</span>}
+										</label>
+										<FileUpload
+											uploadType="resume"
+											onSuccess={(url) => setResumeUrl(url)}
+											currentUrl={resumeUrl}
+											label={job.isResumeRequired ? "Upload Resume (Required)" : "Upload Resume (Optional)"}
+											className="mb-2"
+										/>
+										<p className="text-xs text-slate-500">
+											Supported formats: PDF, DOC, DOCX. Max size: 5MB.
+											{!resumeUrl && job.isResumeRequired && " If you have a resume in your profile, it will be used automatically if you don't upload one here."}
+										</p>
+									</div>
+
 									<div>
 										<label className="block text-sm font-semibold text-slate-700 mb-2">
 											Cover Letter <span className="text-slate-400 font-normal">(Optional)</span>

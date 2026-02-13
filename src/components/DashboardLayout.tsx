@@ -81,8 +81,11 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	}
 
 	if (!isAuthenticated || !user) {
+		console.log("DashboardLayout: Not authenticated or no user", { isAuthenticated, user });
 		return null;
 	}
+
+	console.log("DashboardLayout: Rendering for user", user.id);
 
 	const navItems = getNavItems(user.userType);
 
@@ -97,7 +100,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 				{/* Logo */}
 				<div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
 					{!sidebarCollapsed && (
-						<Link href="/dashboard" className="flex items-center gap-2">
+						<Link href={user.userType === "employer" ? "/employer/dashboard" : "/dashboard"} className="flex items-center gap-2">
 							<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
 								<span className="text-white font-bold text-sm">T</span>
 							</div>
@@ -204,7 +207,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 						</button>
 
 						{/* Mobile Logo */}
-						<Link href="/dashboard" className="md:hidden flex items-center gap-2">
+						<Link href={user.userType === "employer" ? "/employer/dashboard" : "/dashboard"} className="md:hidden flex items-center gap-2">
 							<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
 								<span className="text-white font-bold text-sm">T</span>
 							</div>
@@ -239,7 +242,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 						<div className="fixed inset-y-0 left-0 w-72 bg-white shadow-xl">
 							{/* Mobile Menu Header */}
 							<div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
-								<Link href="/dashboard" className="flex items-center gap-2">
+								<Link href={user.userType === "employer" ? "/employer/dashboard" : "/dashboard"} className="flex items-center gap-2">
 									<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
 										<span className="text-white font-bold text-sm">T</span>
 									</div>

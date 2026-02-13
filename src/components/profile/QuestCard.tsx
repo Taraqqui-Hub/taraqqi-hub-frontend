@@ -1,15 +1,16 @@
 /**
- * Quest Card
- * Collapsible card component for each profile section
- * Compact design with progressive reveal support
+ * Journey Step Card
+ * Clean, minimal card for each profile step
+ * Conversational design with benefit messaging
  */
 
-import { ReactNode, useState, useRef, useEffect } from "react";
-import { ChevronDown, Lock, Check, Sparkles, ArrowRight } from "lucide-react";
+import { ReactNode, useRef, useEffect } from "react";
+import { ChevronDown, Check, Lock, ArrowRight } from "lucide-react";
 
 interface QuestCardProps {
 	title: string;
 	description: string;
+	helperText?: string;
 	icon: ReactNode;
 	xp?: number;
 	showXp?: boolean;
@@ -20,6 +21,7 @@ interface QuestCardProps {
 	expanded?: boolean;
 	stepNumber?: number;
 	totalSteps?: number;
+	isActive?: boolean;
 	onToggle?: () => void;
 	children: ReactNode;
 }
@@ -27,146 +29,147 @@ interface QuestCardProps {
 export default function QuestCard({
 	title,
 	description,
+	helperText,
 	icon,
-	xp = 0,
-	showXp = true,
 	completed,
 	optional = false,
 	locked = false,
 	hidden = false,
 	expanded = false,
 	stepNumber,
-	totalSteps,
+	isActive = false,
 	onToggle,
 	children,
 }: QuestCardProps) {
-	const [internalExpanded, setInternalExpanded] = useState(expanded);
-	const isExpanded = onToggle ? expanded : internalExpanded;
 	const cardRef = useRef<HTMLDivElement>(null);
 
 	// Auto-scroll into view when expanded
 	useEffect(() => {
-		if (isExpanded && cardRef.current) {
+		if (expanded && cardRef.current) {
 			setTimeout(() => {
-				cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+				cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 			}, 100);
 		}
-	}, [isExpanded]);
+	}, [expanded]);
 
 	const handleToggle = () => {
 		if (locked) return;
-		if (onToggle) {
-			onToggle();
-		} else {
-			setInternalExpanded(!internalExpanded);
-		}
+		if (onToggle) onToggle();
 	};
 
-	// Hide locked sections completely for progressive reveal
-	if (hidden) {
-		return null;
-	}
+	if (hidden) return null;
 
 	return (
-		<div 
+		<div
 			ref={cardRef}
 			className={`
-				quest-card rounded-xl border-2 transition-all duration-300
-				${completed 
-					? 'border-green-200 bg-green-50/50' 
-					: locked 
-						? 'border-gray-100 bg-gray-50/50' 
-						: isExpanded 
-							? 'border-blue-300 bg-white shadow-md' 
-							: 'border-gray-200 bg-white hover:border-blue-200'}
+				rounded-2xl border transition-all duration-300
+				${completed
+					? "border-gray-200 bg-white"
+					: locked
+					? "border-gray-100 bg-gray-50/60"
+					: expanded
+					? "border-blue-200 bg-white shadow-lg shadow-blue-500/5"
+					: "border-gray-200 bg-white hover:shadow-md hover:border-gray-300"}
 			`}
 		>
-			{/* Header - Compact padding */}
+			{/* Header */}
 			<button
 				onClick={handleToggle}
 				disabled={locked}
 				className={`
-					w-full p-3 flex items-center gap-3 text-left
-					${locked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+					w-full py-4 px-4 flex items-center gap-4 text-left min-h-[56px]
+					${locked ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
 				`}
 			>
-				{/* Icon - Slightly smaller */}
-				<div className={`
-					w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0
-					${completed 
-						? 'bg-green-100 text-green-600' 
-						: locked 
-							? 'bg-gray-100 text-gray-400' 
-							: 'bg-blue-100 text-blue-600'}
-				`}>
-					{completed ? <Check size={20} /> : locked ? <Lock size={18} /> : icon}
+				{/* Step Number / Icon */}
+				<div
+					className={`
+						w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-all
+						${completed
+							? "bg-green-50 text-green-600"
+							: locked
+							? "bg-gray-100 text-gray-400"
+							: isActive || expanded
+							? "bg-blue-600 text-white shadow-md shadow-blue-500/30"
+							: "bg-gray-100 text-gray-500"}
+					`}
+				>
+					{completed ? (
+						<Check size={20} strokeWidth={2.5} />
+					) : locked ? (
+						<Lock size={16} />
+					) : stepNumber ? (
+						<span className="text-sm font-bold">{stepNumber}</span>
+					) : (
+						icon
+					)}
 				</div>
 
 				{/* Title & Description */}
 				<div className="flex-1 min-w-0">
 					<div className="flex items-center gap-2 flex-wrap">
-						{/* Step indicator */}
-						{stepNumber && totalSteps && !completed && !locked && (
-							<span className="text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">
-								Step {stepNumber}/{totalSteps}
-							</span>
-						)}
-						<h3 className={`font-semibold text-sm ${completed ? 'text-green-700' : locked ? 'text-gray-400' : 'text-gray-800'}`}>
+						<h3
+							className={`font-semibold text-[15px] ${
+								completed
+									? "text-gray-700"
+									: locked
+									? "text-gray-400"
+									: "text-gray-900"
+							}`}
+						>
 							{title}
 						</h3>
 						{optional && (
-							<span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">
-								Bonus
+							<span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+								Optional
 							</span>
 						)}
 						{completed && (
-							<span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
-								<Sparkles size={8} />
-								Done
+							<span className="text-[10px] bg-green-50 text-green-600 px-2 py-0.5 rounded-full font-medium">
+								Completed
 							</span>
 						)}
 					</div>
-					<p className="text-xs text-gray-500 line-clamp-1">{description}</p>
+					<p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{description}</p>
 				</div>
 
-				{/* XP Badge - Compact */}
-				{showXp && (
-					<div className={`
-						px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0
-						${completed 
-							? 'bg-green-100 text-green-600' 
-							: 'bg-gray-100 text-gray-500'}
-					`}>
-						{completed ? '+' : ''}{xp} pts
-					</div>
-				)}
-
-				{/* Expand/Edit Icon */}
+				{/* Expand/Collapse */}
 				{!locked && (
-					<div className="flex items-center gap-2">
-						{completed && (
-							<span className="text-xs font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-								Edit
-							</span>
-						)}
-						<ChevronDown 
-							size={18} 
-							className={`text-gray-400 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} 
+					<div className="flex items-center">
+						{completed && !expanded ? (
+							<span className="text-xs font-medium text-blue-600 mr-1">Edit</span>
+						) : null}
+						<ChevronDown
+							size={18}
+							className={`text-gray-400 transition-transform duration-300 flex-shrink-0 ${
+								expanded ? "rotate-180" : ""
+							}`}
 						/>
 					</div>
 				)}
 			</button>
 
-			{/* Content - Compact padding */}
-			{isExpanded && !locked && (
-				<div className="px-3 pb-3 pt-2 border-t border-gray-100">
+			{/* Helper Text */}
+			{expanded && !locked && helperText && (
+				<div className="px-4 pb-2">
+					<p className="text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2 flex items-center gap-2">
+						<ArrowRight size={12} className="flex-shrink-0" />
+						{helperText}
+					</p>
+				</div>
+			)}
+
+			{/* Content */}
+			{expanded && !locked && (
+				<div className="px-4 pb-5 pt-2 border-t border-gray-100 space-y-4">
 					{children}
 				</div>
 			)}
 
-			{/* Locked Message - More friendly */}
+			{/* Locked Message */}
 			{locked && !hidden && (
-				<div className="px-3 pb-3 flex items-center justify-center gap-2 text-xs text-gray-400">
+				<div className="px-4 pb-3 flex items-center justify-center gap-2 text-xs text-gray-400">
 					<Lock size={12} />
 					Complete previous step to unlock
 				</div>

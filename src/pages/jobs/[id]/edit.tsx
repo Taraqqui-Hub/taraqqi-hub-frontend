@@ -234,6 +234,7 @@ const defaultForm = {
 	applicationDeadline: "",
 	maxApplications: "",
 	autoCloseOnLimit: false,
+	isResumeRequired: false,
 	status: "draft",
 };
 
@@ -311,6 +312,7 @@ export default function EditJobPage() {
                         applicationDeadline: job.applicationDeadline ? new Date(job.applicationDeadline).toISOString().split('T')[0] : "",
                         maxApplications: job.maxApplications || "",
                         autoCloseOnLimit: job.autoCloseOnLimit || false,
+                        isResumeRequired: job.isResumeRequired || false,
                         status: job.status || "draft",
                     });
                      // Set all sections to completed so user can jump around
@@ -413,7 +415,7 @@ export default function EditJobPage() {
 
 		if (type === "checkbox") {
 			const el = e.target as HTMLInputElement;
-			if (name === "autoCloseOnLimit" || name === "hideSalary" || name === "isSalaryNegotiable") {
+			if (name === "autoCloseOnLimit" || name === "hideSalary" || name === "isSalaryNegotiable" || name === "isResumeRequired") {
 				setFormData((prev) => ({ ...prev, [name]: el.checked }));
 			} else if (BENEFITS_OPTIONS.some((b) => b.id === name)) {
 				setFormData((prev) => ({
@@ -474,6 +476,7 @@ export default function EditJobPage() {
 			applicationDeadline: formData.applicationDeadline || undefined,
 			maxApplications: formData.maxApplications ? parseInt(formData.maxApplications as string, 10) : undefined,
 			autoCloseOnLimit: formData.autoCloseOnLimit,
+			isResumeRequired: formData.isResumeRequired,
 			status: statusOverride || formData.status,
 		};
 	};
@@ -939,6 +942,10 @@ export default function EditJobPage() {
 									<label className="flex items-center gap-2 cursor-pointer">
 										<input type="checkbox" checked={formData.autoCloseOnLimit} onChange={(e) => setFormData((p) => ({ ...p, autoCloseOnLimit: e.target.checked }))} className="rounded border-slate-300" />
 										<span className="text-sm text-slate-700">Auto-close job when limit reached</span>
+									</label>
+									<label className="flex items-center gap-2 cursor-pointer mt-2">
+										<input type="checkbox" name="isResumeRequired" checked={formData.isResumeRequired} onChange={handleChange} className="rounded border-slate-300" />
+										<span className="text-sm text-slate-700">Require Resume/CV from applicants</span>
 									</label>
 								</div>
 

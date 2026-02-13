@@ -13,7 +13,7 @@ type UserType = "individual" | "employer";
 
 export default function RegisterPage() {
 	const router = useRouter();
-	const { signup, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+	const { signup, isLoading, error, clearError, isAuthenticated, user } = useAuthStore();
 
 	// Form state
 	// Default to "individual" as per new "One Identity" model
@@ -38,7 +38,11 @@ export default function RegisterPage() {
 
 	// Redirect if already authenticated
 	if (isAuthenticated) {
-		router.replace("/dashboard");
+		if (user?.userType === "employer") {
+			router.replace("/employer/dashboard");
+		} else {
+			router.replace("/dashboard");
+		}
 		return null;
 	}
 

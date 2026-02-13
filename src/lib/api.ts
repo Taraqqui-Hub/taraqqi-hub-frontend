@@ -109,6 +109,7 @@ export interface User {
 	profileComplete?: boolean;
 	profileCompletionPercentage?: number;
 	hasPreferences?: boolean;
+	rejectedReason?: string | null;
 	permissions: string[];
 }
 

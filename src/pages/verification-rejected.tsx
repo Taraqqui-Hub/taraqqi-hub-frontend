@@ -17,16 +17,20 @@ export default function VerificationRejectedPage() {
 		if (!isAuthenticated) {
 			router.replace("/login");
 		} else if (isVerified()) {
-			router.replace("/dashboard");
+			if (user?.userType === "employer") {
+				router.replace("/employer/dashboard");
+			} else {
+				router.replace("/dashboard");
+			}
 		}
-	}, [isAuthenticated, isVerified, router]);
+	}, [isAuthenticated, isVerified, router, user]);
 
 	if (!isAuthenticated || !user) {
 		return null;
 	}
 
-	// Get rejection reason (placeholder - would come from API)
-	const rejectionReason = "The submitted documents were unclear or did not match the provided information.";
+	// Get rejection reason
+	const rejectionReason = user?.rejectedReason || "The submitted documents were unclear or did not match the provided information.";
 
 	return (
 		<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">

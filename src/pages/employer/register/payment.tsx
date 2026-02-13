@@ -148,7 +148,7 @@ export default function EmployerRegisterPaymentPage() {
 						</div>
 						<div className="px-6 py-4 bg-[#F8FAFC] border-t border-[#E2E8F0] text-center">
 							<Link
-								href="/dashboard"
+								href="/employer/dashboard"
 								className="text-sm text-[#64748B] hover:text-[#2563EB]"
 							>
 								Back to dashboard

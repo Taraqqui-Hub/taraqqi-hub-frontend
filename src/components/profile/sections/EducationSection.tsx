@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from "react";
-import { GraduationCap, Plus, Trash2, School, Calendar, Award, Heart, Sparkles } from "lucide-react";
+import { GraduationCap, Plus, Trash2, School, Calendar, Award, Heart, Sparkles, Check } from "lucide-react";
 
 interface EducationRecord {
 	id?: string;
@@ -184,9 +184,9 @@ export default function EducationSection({
 				</button>
 
 				{/* Completion hint */}
-				<p className="text-center text-sm text-green-600 flex items-center justify-center gap-1">
-					<Award size={16} />
-					You earned +25 Points for completing this section!
+				<p className="mt-4 text-sm text-blue-600 flex items-center justify-center gap-1">
+					<Check size={16} />
+					Employers can now see your education background.
 				</p>
 			</div>
 		);
@@ -315,14 +315,14 @@ export default function EducationSection({
 					<div className="flex gap-3">
 						<button
 							onClick={() => setShowForm(false)}
-							className="flex-1 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-all"
+							className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
 						>
 							Cancel
 						</button>
 						<button
 							onClick={handleAdd}
 							disabled={saving || !newRecord.level || !newRecord.institution || !newRecord.yearOfPassing}
-							className="flex-1 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+							className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 font-medium min-h-[48px]"
 						>
 							{saving ? "Adding..." : "Add Education"}
 						</button>
@@ -341,11 +341,10 @@ export default function EducationSection({
 				</button>
 			)}
 
-			{/* Completion hint */}
 			{records.length > 0 && (
-				<p className="text-center text-sm text-green-600 flex items-center justify-center gap-1">
+				<p className="text-center text-sm text-blue-600 flex items-center justify-center gap-1">
 					<Award size={16} />
-					You earned +25 Points for this section!
+					Employers can now see your education background.
 				</p>
 			)}
 		</div>

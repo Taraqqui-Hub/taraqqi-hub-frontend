@@ -1,6 +1,6 @@
 /**
  * Community Section (Optional, Consent-Gated)
- * Religion, caste, community affiliation
+ * Religion, category, community affiliation
  */
 
 import { useState } from "react";
@@ -98,9 +98,9 @@ export default function CommunitySection({ data, onChange, onSave, saving }: Com
 						</select>
 					</div>
 
-					{/* Caste Category */}
+					{/* Category */}
 					<div>
-						<label className="block text-xs font-medium text-gray-700 mb-1.5">Caste Category</label>
+						<label className="block text-xs font-medium text-gray-700 mb-1.5">Category (Optional)</label>
 						<div className="grid grid-cols-3 md:grid-cols-5 gap-1.5">
 							{CASTE_CATEGORIES.map(cat => (
 								<button
@@ -120,14 +120,14 @@ export default function CommunitySection({ data, onChange, onSave, saving }: Com
 						</div>
 					</div>
 
-					{/* Sub Caste (optional) */}
+					{/* Sub-Category (optional) */}
 					<div>
-						<label className="block text-xs font-medium text-gray-700 mb-1">Sub-Caste (If applicable)</label>
+						<label className="block text-xs font-medium text-gray-700 mb-1">Sub-Category (If applicable)</label>
 						<input
 							type="text"
 							value={data.subCaste || ""}
 							onChange={e => onChange({ ...data, subCaste: e.target.value })}
-							placeholder="Enter sub-caste"
+							placeholder="Enter sub-category"
 							className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-sm"
 						/>
 					</div>

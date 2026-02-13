@@ -56,6 +56,11 @@ export default function ProtectedRoute({
 			if (redirect) {
 				// Don't redirect if we're already on the target page or a sub-path of it (for profile)
 				if (router.pathname !== redirect && !router.pathname.startsWith(redirect + "/")) {
+					// Check for allowed exceptions manually if not covered by getVerificationRedirect logic
+					// e.g. If status is rejected, allow access to /kyc for resubmission
+					if (redirect === "/verification-rejected" && router.pathname === "/kyc") {
+						return; 
+					}
 					router.replace(redirect);
 				}
 			}
@@ -91,11 +96,13 @@ export default function ProtectedRoute({
 
 	// Not authenticated
 	if (!isAuthenticated) {
+		console.log("Not authenticated");
 		return null;
 	}
 
 	// Permission check failed
 	if (requiredPermission && !hasPermission(requiredPermission)) {
+		console.log("Permission check failed");
 		return null;
 	}
 
@@ -106,6 +113,7 @@ export default function ProtectedRoute({
 		user &&
 		!allowedUserTypes.includes(user.userType)
 	) {
+		console.log("User type check failed");
 		return null;
 	}
 

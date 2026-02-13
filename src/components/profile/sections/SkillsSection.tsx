@@ -227,113 +227,102 @@ export default function SkillsSection({ skills, onAdd, onBulkAdd, onDelete, onUp
 			</div>
 
 			{/* Current skills */}
-			{skills.length > 0 && (
-				<div className="space-y-3">
-					<p className="text-sm font-medium text-gray-700">Your Skills ({skills.length})</p>
-					<div className="flex flex-wrap gap-3">
-						{skills.map(skill => (
+		{skills.length > 0 && (
+			<div className="space-y-3">
+				<p className="text-sm font-medium text-gray-700">Your Skills ({skills.length})</p>
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+					{skills.map(skill => {
+						const isExpanded = editingId === skill.id;
+						const level = PROFICIENCY_LEVELS.find(p => p.value === skill.proficiencyLevel);
+
+						return (
 							<div 
 								key={skill.id || skill.skillName}
-								className="group relative"
+								className={`
+									relative rounded-xl border transition-all overflow-hidden
+									${isExpanded
+										? 'border-blue-200 bg-blue-50/30 shadow-sm'
+										: 'border-gray-200 bg-white hover:border-gray-300'}
+								`}
 							>
-								<div className={`
-									flex items-center gap-2 pl-3 pr-2 py-2 rounded-lg border transition-all
-									${skill.proficiencyLevel 
-										? 'bg-white border-gray-200 shadow-sm' 
-										: 'bg-blue-50 border-blue-100 text-blue-700'}
-								`}>
-									<div className="flex flex-col">
-										<span className="font-medium text-sm">{skill.skillName}</span>
-										<button
-											onClick={() => skill.id && handleEditClick(skill.id, skill.proficiencyLevel)}
-											className={`
-												text-[10px] uppercase font-bold tracking-wider text-left mt-0.5 flex items-center gap-1
-												${skill.proficiencyLevel 
-													? PROFICIENCY_LEVELS.find(p => p.value === skill.proficiencyLevel)?.color.replace('bg-', 'text-').split(' ')[1] || 'text-gray-500' 
-													: 'text-blue-600 animate-pulse'}
-											`}
-										>
-											{skill.proficiencyLevel 
-												? PROFICIENCY_LEVELS.find(p => p.value === skill.proficiencyLevel)?.label 
-												: 'Set Level'}
-											<ChevronDown size={10} />
-										</button>
-									</div>
-
+								{/* Skill Row */}
+								<div className="flex items-center gap-2 px-3 py-2.5">
+									{/* Skill Name & Level Badge */}
 									<button
-										onClick={() => skill.id && onDelete(skill.id)}
-										className="w-6 h-6 rounded-full hover:bg-black/5 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors ml-1"
+										onClick={() => skill.id && setEditingId(isExpanded ? null : skill.id)}
+										className="flex-1 flex items-center gap-2 text-left min-w-0"
+									>
+										<span className="font-medium text-sm text-gray-900 truncate">
+											{skill.skillName}
+										</span>
+										{level ? (
+											<span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold whitespace-nowrap ${level.color}`}>
+												{level.label}
+											</span>
+										) : (
+											<span className="text-[10px] text-blue-500 font-medium whitespace-nowrap">
+												Set level
+											</span>
+										)}
+									</button>
+
+									{/* Delete */}
+									<button
+										onClick={(e) => {
+											e.stopPropagation();
+											skill.id && onDelete(skill.id);
+										}}
+										className="w-6 h-6 rounded-full hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
 									>
 										<X size={14} />
 									</button>
 								</div>
-								
-								{/* Proficiency dropdown */}
-								{editingId === skill.id && (
-									<div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-2 min-w-[200px] animate-in fade-in slide-in-from-top-2 duration-200">
-										<div className="text-[10px] font-semibold text-gray-400 px-2 py-1 mb-1">SELECT LEVEL</div>
-										<div className="space-y-1 mb-2">
-											{PROFICIENCY_LEVELS.map(level => (
+
+								{/* Level Selector (only shows for THIS skill) */}
+								{isExpanded && (
+									<div className="px-3 pb-3 pt-1 border-t border-blue-100">
+										<p className="text-[10px] text-gray-500 font-medium mb-1.5 uppercase tracking-wider">Select Level</p>
+										<div className="flex gap-1.5">
+											{PROFICIENCY_LEVELS.map(lvl => (
 												<button
-													key={level.value}
-													onClick={() => setTempProficiency(level.value)}
+													key={lvl.value}
+													onClick={async () => {
+														if (skill.id) {
+															await onUpdate(skill.id, { proficiencyLevel: lvl.value });
+															setEditingId(null);
+														}
+													}}
 													className={`
-														w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between group/item
-														${tempProficiency === level.value ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}
+														flex-1 text-[11px] py-1.5 rounded-lg border font-semibold transition-all
+														${skill.proficiencyLevel === lvl.value
+															? `${lvl.color} border-blue-300 ring-2 ring-blue-200`
+															: `${lvl.color} border-transparent hover:border-gray-300 hover:shadow-sm`}
 													`}
 												>
-													<span className="flex items-center gap-2">
-														<span className={`w-1.5 h-1.5 rounded-full ${level.color.split(' ')[0].replace('bg-', 'bg-')}`}></span>
-														{level.label}
-													</span>
-													{tempProficiency === level.value && <Check size={14} />}
+													{lvl.label}
 												</button>
 											))}
-										</div>
-										
-										{/* Actions */}
-										<div className="flex items-center gap-2 pt-2 border-t border-gray-100 mt-1">
-											<button
-												onClick={handleCancelEdit}
-												className="flex-1 px-2 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
-											>
-												Cancel
-											</button>
-											<button
-												onClick={() => skill.id && handleSaveProficiency(skill.id)}
-												disabled={!tempProficiency}
-												className="flex-1 px-2 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
-											>
-												Save
-											</button>
 										</div>
 									</div>
 								)}
 							</div>
-						))}
-					</div>
+						);
+					})}
+				</div>
+			</div>
+		)}
+
+			{skills.length >= 3 ? (
+				<div className="p-3 rounded-lg text-sm flex items-center gap-2 bg-blue-50 text-blue-700">
+					<Check size={18} />
+					Your profile is now more visible to recruiters.
+				</div>
+			) : (
+				<div className="p-3 rounded-lg text-sm flex items-center gap-2 bg-amber-50 text-amber-700">
+					<Wrench size={18} />
+					Add {3 - skills.length} more skill{3 - skills.length > 1 ? 's' : ''} to complete this section
 				</div>
 			)}
-
-			{/* Progress hint */}
-			<div className={`
-				p-3 rounded-lg text-sm flex items-center gap-2
-				${skills.length >= 3 
-					? 'bg-green-50 text-green-700' 
-					: 'bg-amber-50 text-amber-700'}
-			`}>
-				{skills.length >= 3 ? (
-					<>
-						<Check size={18} />
-						Great! You earned +20 Points for this section
-					</>
-				) : (
-					<>
-						<Wrench size={18} />
-						Add {3 - skills.length} more skill{3 - skills.length > 1 ? 's' : ''} to complete this section
-					</>
-				)}
-			</div>
 		</div>
 	);
 }

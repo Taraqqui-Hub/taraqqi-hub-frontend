@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 interface KycRecord {
 	id: string;
@@ -23,6 +24,7 @@ export default function KycPage() {
 	const [uploading, setUploading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
+	const { checkAuth } = useAuthStore();
 
 	// Form
 	// Form
@@ -35,15 +37,21 @@ export default function KycPage() {
 		loadKycStatus();
 	}, []);
 
+	console.log("KycPage: Rendering", { loading, overallStatus, records });
+
 	const loadKycStatus = async () => {
+		console.log("KycPage: Loading status...");
 		try {
 			const response = await api.get("/kyc");
+			console.log("KycPage: API Response", response.data);
 			const payload = response.data?.payload;
 			setRecords(payload?.records || []);
 			setOverallStatus(payload?.overallStatus || "not_submitted");
-		} catch (err) {
+		} catch (err: any) {
 			console.error("Failed to load KYC status", err);
+			// If 403/401, maybe we can't read it.
 		} finally {
+			console.log("KycPage: Loading done");
 			setLoading(false);
 		}
 	};
@@ -131,7 +139,8 @@ export default function KycPage() {
 			setDocumentNumber("");
 			setDocumentFile(null);
 			setSelfieFile(null);
-			loadKycStatus();
+			await loadKycStatus();
+			await checkAuth(); // Refresh user status to trigger redirect via ProtectedRoute
 		} catch (err: any) {
 			console.error("KYC submission error:", err);
 			setError(err.response?.data?.error || err.message || "Failed to submit KYC");
