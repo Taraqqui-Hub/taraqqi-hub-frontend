@@ -34,6 +34,9 @@ interface AuthState {
 	getVerificationRedirect: () => string | null;
 }
 
+// In-flight guard: prevent duplicate checkAuth API calls (e.g. from _app + login page or React Strict Mode)
+let checkAuthPromise: Promise<void> | null = null;
+
 // Redirect map based on verification status
 const VERIFICATION_REDIRECTS: Record<VerificationStatus, string | null> = {
 	draft: null, // Handled dynamically in getVerificationRedirect
@@ -124,34 +127,37 @@ export const useAuthStore = create<AuthState>()(
 				});
 			},
 
-			// Check auth status on app load
+			// Check auth status on app load (deduplicated: concurrent calls share one request)
 			checkAuth: async () => {
-				// Prevent double invocation which causes race conditions with refresh tokens
-				// Removing this check to ensure checkAuth runs on mount even if initial state is loading
-				// if (state.isLoading) return;
-
+				if (checkAuthPromise) {
+					return checkAuthPromise;
+				}
 				set({ isLoading: true });
-				try {
-					// Try to refresh token first
-					await authApi.refresh();
-					const response = await authApi.getMe();
-					const user = response.payload?.user;
-					if (user) {
+				checkAuthPromise = (async () => {
+					try {
+						await authApi.refresh();
+						const response = await authApi.getMe();
+						const user = response.payload?.user;
+						if (user) {
+							set({
+								user,
+								isAuthenticated: true,
+								isLoading: false,
+							});
+						} else {
+							set({ isLoading: false });
+						}
+					} catch {
 						set({
-							user,
-							isAuthenticated: true,
+							user: null,
+							isAuthenticated: false,
 							isLoading: false,
 						});
-					} else {
-						set({ isLoading: false });
+					} finally {
+						checkAuthPromise = null;
 					}
-				} catch {
-					set({
-						user: null,
-						isAuthenticated: false,
-						isLoading: false,
-					});
-				}
+				})();
+				return checkAuthPromise;
 			},
 
 			// Clear error

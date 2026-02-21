@@ -4,7 +4,8 @@
  * Includes polite handling for users without formal education
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { GraduationCap, Plus, Trash2, School, Calendar, Award, Heart, Sparkles, Check } from "lucide-react";
 
 interface EducationRecord {
@@ -25,19 +26,6 @@ interface EducationSectionProps {
 	hasNoFormalEducation?: boolean;
 }
 
-const EDUCATION_LEVELS = [
-	{ value: "no_education", label: "No Formal Education" },
-	{ value: "below_10th", label: "Below 10th Class" },
-	{ value: "10th", label: "10th Class" },
-	{ value: "12th", label: "12th Class" },
-	{ value: "iti", label: "ITI / Vocational Training" },
-	{ value: "diploma", label: "Diploma" },
-	{ value: "ug", label: "Graduate (UG)" },
-	{ value: "pg", label: "Post Graduate (PG)" },
-	{ value: "phd", label: "PhD / Doctorate" },
-	{ value: "other", label: "Other" },
-];
-
 export default function EducationSection({ 
 	records, 
 	onAdd, 
@@ -46,6 +34,19 @@ export default function EducationSection({
 	onMarkNoFormalEducation,
 	hasNoFormalEducation = false 
 }: EducationSectionProps) {
+	const { t } = useTranslation();
+	const EDUCATION_LEVELS = useMemo(() => [
+		{ value: "no_education", label: t("profileWizard.education.noFormalEducation") },
+		{ value: "below_10th", label: t("profileWizard.education.below10th") },
+		{ value: "10th", label: t("profileWizard.education.class10th") },
+		{ value: "12th", label: t("profileWizard.education.class12th") },
+		{ value: "iti", label: t("profileWizard.education.itiVocational") },
+		{ value: "diploma", label: t("profileWizard.education.diploma") },
+		{ value: "ug", label: t("profileWizard.education.graduate") },
+		{ value: "pg", label: t("profileWizard.education.postGraduate") },
+		{ value: "phd", label: t("profileWizard.education.phd") },
+		{ value: "other", label: t("profileWizard.education.other") },
+	], [t]);
 	const [educationPath, setEducationPath] = useState<"formal" | "no_formal" | null>(null);
 	const [showForm, setShowForm] = useState(false);
 	const [newRecord, setNewRecord] = useState<Omit<EducationRecord, 'id'>>({
@@ -118,7 +119,7 @@ export default function EducationSection({
 								<GraduationCap size={22} />
 							</div>
 							<div>
-								<p className="font-medium text-gray-800">I have formal education</p>
+								<p className="font-medium text-gray-800">{t("profileWizard.education.iHaveFormalEducation")}</p>
 								<p className="text-sm text-gray-500 mt-0.5">Add your school, college, or other educational qualifications</p>
 							</div>
 						</div>
@@ -216,7 +217,7 @@ export default function EducationSection({
 							<button
 								onClick={() => edu.id && onDelete(edu.id)}
 								className="text-red-500 hover:text-red-700 p-1"
-								title="Remove"
+								title={t("profileWizard.education.remove")}
 							>
 								<Trash2 size={18} />
 							</button>
@@ -254,7 +255,7 @@ export default function EducationSection({
 							onChange={e => setNewRecord({ ...newRecord, level: e.target.value })}
 							className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
 						>
-							<option value="">Select Level</option>
+							<option value="">{t("profileWizard.education.selectLevel")}</option>
 							{EDUCATION_LEVELS.filter(l => l.value !== "no_education").map(l => (
 								<option key={l.value} value={l.value}>{l.label}</option>
 							))}
@@ -324,7 +325,7 @@ export default function EducationSection({
 							disabled={saving || !newRecord.level || !newRecord.institution || !newRecord.yearOfPassing}
 							className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2 font-medium min-h-[48px]"
 						>
-							{saving ? "Adding..." : "Add Education"}
+							{saving ? t("profileWizard.education.adding") : t("profileWizard.education.addEducation")}
 						</button>
 					</div>
 				</div>

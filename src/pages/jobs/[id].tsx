@@ -31,9 +31,19 @@ import {
 	MessageCircle,
 	ArrowLeft,
 	MoreHorizontal,
-	FileText
+	FileText,
+	Users
 } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
+
+const BENEFIT_LABELS: Record<string, string> = {
+	pf: "PF",
+	esi: "ESI",
+	accommodation: "Accommodation",
+	food: "Food",
+	transport: "Transport",
+	health_insurance: "Health Insurance",
+};
 
 interface Job {
 	id: string;
@@ -51,6 +61,10 @@ interface Job {
 	city: string | null;
 	area: string | null;
 	state: string | null;
+	address: string | null;
+	addressLine2: string | null;
+	district: string | null;
+	pincode: string | null;
 	salaryMin: string | null;
 	salaryMax: string | null;
 	salaryType: string | null;
@@ -436,10 +450,10 @@ export default function JobDetailPage() {
 													{job.company?.isVerified && <CheckCircle2 className="w-4 h-4 text-blue-500" />}
 												</span>
 
-												{job.city && (
+												{(job.address || job.city) && (
 													<span className="flex items-center gap-1.5">
 														<MapPin className="w-4 h-4 text-slate-400" />
-														{job.city}{job.area ? `, ${job.area}` : ''}
+														{[job.address, job.addressLine2, job.city, job.area, job.district, job.state, job.pincode].filter(Boolean).join(", ")}
 													</span>
 												)}
 												<span className="flex items-center gap-1.5">
@@ -451,7 +465,7 @@ export default function JobDetailPage() {
 									</div>
 
 									{/* Quick Stats Grid */}
-									<div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8 pt-6 border-t border-slate-100 relative z-1">
+									<div className={`grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-slate-100 relative z-1 ${(job.ageMin != null || job.ageMax != null) ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
 										<div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-colors">
 											<div className="flex items-center gap-2 mb-2 text-slate-500">
                                                 <DollarSign className="w-4 h-4" />
@@ -488,6 +502,21 @@ export default function JobDetailPage() {
 												{job.locationType}
 											</p>
 										</div>
+										{(job.ageMin != null || job.ageMax != null) && (
+											<div className="p-4 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/30 transition-colors">
+												<div className="flex items-center gap-2 mb-2 text-slate-500">
+													<Users className="w-4 h-4" />
+													<p className="text-xs font-bold uppercase tracking-wide">Age range</p>
+												</div>
+												<p className="font-bold text-slate-900 text-sm md:text-base">
+													{job.ageMin != null && job.ageMax != null
+														? `${job.ageMin}–${job.ageMax} years`
+														: job.ageMin != null
+														? `${job.ageMin}+ years`
+														: `${job.ageMax} years or below`}
+												</p>
+											</div>
+										)}
 									</div>
 								</div>
 
@@ -565,7 +594,7 @@ export default function JobDetailPage() {
 													<div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center flex-shrink-0">
                                                         <CheckCircle2 className="w-4 h-4" />
                                                     </div>
-													<span className="text-slate-700 font-medium">{benefit}</span>
+													<span className="text-slate-700 font-medium">{BENEFIT_LABELS[benefit] || benefit}</span>
 												</div>
 											))}
 										</div>

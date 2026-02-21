@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Briefcase, Building2, Calendar, Plus, Trash2, GraduationCap, Check } from "lucide-react";
 
 interface ExperienceRecord {
@@ -26,6 +27,7 @@ interface ExperienceSectionProps {
 }
 
 export default function ExperienceSection({ records, onAdd, onDelete, onMarkFresher, saving }: ExperienceSectionProps) {
+	const { t } = useTranslation();
 	const [showForm, setShowForm] = useState(records.length === 0);
 	const [isFresher, setIsFresher] = useState(false);
 	const [newRecord, setNewRecord] = useState<Omit<ExperienceRecord, 'id'>>({
@@ -126,13 +128,13 @@ export default function ExperienceSection({ records, onAdd, onDelete, onMarkFres
 								<p className="text-xs text-gray-400">
 									{exp.startDate && new Date(exp.startDate).getFullYear()}
 									{" — "}
-									{exp.isCurrent ? "Present" : exp.endDate && new Date(exp.endDate).getFullYear()}
+									{exp.isCurrent ? t("profileWizard.experience.present") : exp.endDate && new Date(exp.endDate).getFullYear()}
 								</p>
 							</div>
 							<button
 								onClick={() => exp.id && onDelete(exp.id)}
 								className="text-red-500 hover:text-red-700 p-1"
-								title="Remove"
+								title={t("profileWizard.experience.remove")}
 							>
 								<Trash2 size={18} />
 							</button>
@@ -250,7 +252,7 @@ export default function ExperienceSection({ records, onAdd, onDelete, onMarkFres
 							disabled={saving || !newRecord.companyName || !newRecord.jobTitle}
 							className="flex-1 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all font-medium min-h-[48px]"
 						>
-							{saving ? "Adding..." : "Add Experience"}
+							{saving ? t("profileWizard.experience.adding") : t("profileWizard.experience.addExperience")}
 						</button>
 					</div>
 				</div>

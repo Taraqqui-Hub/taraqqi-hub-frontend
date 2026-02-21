@@ -188,16 +188,27 @@ export const authApi = {
 		return response.data;
 	},
 
-	// Request password reset
+	// Request password reset (sends reset code to email)
 	forgotPassword: async (email: string): Promise<{ message: string }> => {
-		const response = await api.post("/auth/forgot-password", { email });
+		const response = await api.post("/auth/reset-password/send-code", { email });
 		return response.data;
 	},
 
-	// Reset password with code
+	// Validate reset code (e.g. when user lands on reset-password page)
+	validateResetCode: async (code: string): Promise<{ valid: boolean; userId: string; message: string }> => {
+		const response = await api.get("/auth/reset-password/validate-code", {
+			params: { code },
+		});
+		return response.data.payload ?? response.data;
+	},
+
+	// Reset password with code from email
 	resetPassword: async (code: string, newPassword: string): Promise<{ message: string }> => {
-		const response = await api.post("/auth/reset-password", { code, newPassword });
-		return response.data;
+		const response = await api.patch("/auth/reset-password/reset", {
+			code,
+			newPassword,
+		});
+		return response.data.payload ?? response.data;
 	},
 
 	// Update profile

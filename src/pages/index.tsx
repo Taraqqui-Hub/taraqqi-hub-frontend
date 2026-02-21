@@ -5,6 +5,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 /* ──────────────────────────────────────
    Icon Components (inline SVG)
@@ -155,6 +157,7 @@ const TESTIMONIALS = [
    ────────────────────────────────────── */
 
 export default function HomePage() {
+	const { t } = useTranslation();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 	return (
@@ -179,35 +182,36 @@ export default function HomePage() {
 								href="/jobs"
 								className="text-sm font-medium text-[#475569] hover:text-[#2563EB] transition-colors"
 							>
-								Find Jobs
+								{t("landing.findJobs")}
 							</Link>
 							<Link
 								href="/register?type=employer"
 								className="text-sm font-medium text-[#475569] hover:text-[#2563EB] transition-colors"
 							>
-								For Employers
+								{t("landing.forEmployers")}
 							</Link>
 							<a
 								href="#how-it-works"
 								className="text-sm font-medium text-[#475569] hover:text-[#2563EB] transition-colors"
 							>
-								How It Works
+								{t("landing.howItWorks")}
 							</a>
 						</nav>
 
 						{/* Desktop Actions */}
 						<div className="hidden md:flex items-center gap-3">
+							<LanguageSwitcher />
 							<Link
 								href="/login"
 								className="text-sm font-medium text-[#475569] hover:text-[#0F172A] transition-colors px-4 py-2"
 							>
-								Sign In
+								{t("landing.signIn")}
 							</Link>
 							<Link
 								href="/register"
 								className="text-sm font-semibold text-white bg-[#2563EB] hover:bg-[#1E40AF] px-5 py-2.5 rounded-lg transition-colors"
 							>
-								Get Started
+								{t("landing.getStarted")}
 							</Link>
 						</div>
 
@@ -229,32 +233,32 @@ export default function HomePage() {
 									href="/jobs"
 									className="text-sm font-medium text-[#475569] hover:text-[#2563EB] px-2 py-1.5"
 								>
-									Find Jobs
+									{t("landing.findJobs")}
 								</Link>
 								<Link
 									href="/register?type=employer"
 									className="text-sm font-medium text-[#475569] hover:text-[#2563EB] px-2 py-1.5"
 								>
-									For Employers
+									{t("landing.forEmployers")}
 								</Link>
 								<a
 									href="#how-it-works"
 									className="text-sm font-medium text-[#475569] hover:text-[#2563EB] px-2 py-1.5"
 								>
-									How It Works
+									{t("landing.howItWorks")}
 								</a>
 								<div className="flex gap-3 mt-2">
 									<Link
 										href="/login"
 										className="flex-1 text-center text-sm font-medium text-[#475569] border border-[#E2E8F0] rounded-lg py-2.5 hover:border-[#2563EB] hover:text-[#2563EB] transition-colors"
 									>
-										Sign In
+										{t("landing.signIn")}
 									</Link>
 									<Link
 										href="/register"
 										className="flex-1 text-center text-sm font-semibold text-white bg-[#2563EB] rounded-lg py-2.5 hover:bg-[#1E40AF] transition-colors"
 									>
-										Get Started
+										{t("landing.getStarted")}
 									</Link>
 								</div>
 							</nav>
@@ -275,24 +279,20 @@ export default function HomePage() {
 						<div className="animate-fade-in-up inline-flex items-center gap-2 px-4 py-1.5 bg-[#2563EB]/5 border border-[#2563EB]/15 rounded-full mb-8">
 							<ShieldIcon className="w-4 h-4 text-[#2563EB]" />
 							<span className="text-xs font-semibold text-[#2563EB] tracking-wide uppercase">
-								Halal · Transparent · Skill-Based
+								{t("landing.badge")}
 							</span>
 						</div>
 
 						<h1 className="animate-fade-in-up-delay-1 text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-extrabold text-[#0F172A] leading-tight tracking-tight">
-							Halal, Transparent &{" "}
-							<span className="text-[#2563EB]">Skill-Based</span>{" "}
-							Job Platform
+							{t("landing.heroTitle")}
 						</h1>
 
 						<p className="animate-fade-in-up-delay-2 mt-6 text-base sm:text-lg text-[#475569] max-w-2xl mx-auto leading-relaxed">
-							A trusted space where talent meets opportunity. No fraud, no exploitation, no confusion.
-							Just verified employers, skilled candidates, and a system built on honesty and accountability.
+							{t("landing.heroSubtitle")}
 						</p>
 
 						<p className="animate-fade-in-up-delay-3 mt-4 text-sm text-[#64748B] max-w-xl mx-auto leading-relaxed">
-							Our goal is simple — help our community grow through dignified employment.
-							Whether you are a job seeker or an employer, this platform connects you in a clear, ethical and structured way.
+							{t("landing.heroGoal")}
 						</p>
 
 						{/* CTA Buttons */}
@@ -301,14 +301,14 @@ export default function HomePage() {
 								href="/jobs"
 								className="group inline-flex items-center justify-center gap-2 px-8 py-4 bg-[#2563EB] text-white font-semibold rounded-xl hover:bg-[#1E40AF] transition-all text-base shadow-lg shadow-[#2563EB]/20 hover:shadow-xl hover:shadow-[#2563EB]/30"
 							>
-								Find Jobs
+								{t("landing.findJobs")}
 								<ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
 							</Link>
 							<Link
 								href="/register?type=employer"
 								className="inline-flex items-center justify-center px-8 py-4 bg-white text-[#0F172A] font-semibold rounded-xl border border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] transition-all text-base shadow-sm hover:shadow-md"
 							>
-								Post a Job
+								{t("landing.postAJob")}
 							</Link>
 						</div>
 					</div>
@@ -531,7 +531,7 @@ export default function HomePage() {
 								</div>
 
 								<p className="mt-8 text-xs text-[#64748B]">
-									A system built on trust, skill and community responsibility.
+									{t("landing.trustFooter")}
 								</p>
 							</div>
 						</div>
@@ -550,7 +550,7 @@ export default function HomePage() {
 							<span className="text-sm font-bold text-[#0F172A]">Taraqqi Hub</span>
 						</div>
 						<p className="text-xs text-[#94A3B8]">
-							© {new Date().getFullYear()} Taraqqi Hub. All rights reserved.
+							{t("landing.copyright", { year: new Date().getFullYear() })}
 						</p>
 					</div>
 				</div>

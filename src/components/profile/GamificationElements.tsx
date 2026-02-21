@@ -4,7 +4,7 @@
  * Replaces old XP/points gamification with benefit-driven UX
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
 	CheckCircle,
 	Clock,
@@ -16,13 +16,16 @@ import {
 // Journey Progress Bar
 // ============================================
 
-const STEP_LABELS = ["Basic Info", "Location", "Education", "Skills", "Experience"];
+const DEFAULT_STEP_LABELS = ["Basic Info", "Location", "Education", "Skills", "Experience"];
 
 interface JourneyProgressBarProps {
 	completionPercentage: number;
 	completedSteps: number;
 	totalSteps: number;
 	animate?: boolean;
+	stepLabels?: string[];
+	percentCompleteLabel?: string;
+	minLeftLabel?: string;
 }
 
 export function JourneyProgressBar({
@@ -30,6 +33,9 @@ export function JourneyProgressBar({
 	completedSteps,
 	totalSteps,
 	animate = true,
+	stepLabels = DEFAULT_STEP_LABELS,
+	percentCompleteLabel,
+	minLeftLabel,
 }: JourneyProgressBarProps) {
 	const [displayPercentage, setDisplayPercentage] = useState(animate ? 0 : completionPercentage);
 
@@ -44,6 +50,12 @@ export function JourneyProgressBar({
 
 	const remainingSteps = totalSteps - completedSteps;
 	const estimatedMinutes = remainingSteps * 2; // ~2 min per step
+	const pctText = percentCompleteLabel
+		? percentCompleteLabel.replace("{{pct}}", String(Math.round(displayPercentage)))
+		: `${Math.round(displayPercentage)}% Complete`;
+	const minText = minLeftLabel
+		? minLeftLabel.replace("{{min}}", String(estimatedMinutes))
+		: `~${estimatedMinutes} min left`;
 
 	return (
 		<div className="journey-progress">
@@ -51,12 +63,12 @@ export function JourneyProgressBar({
 			<div className="flex items-center justify-between mb-2">
 				<div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
 					<TrendingUp size={16} className="text-blue-600" />
-					<span>{Math.round(displayPercentage)}% Complete</span>
+					<span>{pctText}</span>
 				</div>
 				{remainingSteps > 0 && (
 					<div className="flex items-center gap-1 text-xs text-gray-500">
 						<Clock size={12} />
-						<span>~{estimatedMinutes} min left</span>
+						<span>{minText}</span>
 					</div>
 				)}
 			</div>
@@ -71,7 +83,7 @@ export function JourneyProgressBar({
 
 			{/* Labeled Step Milestones */}
 			<div className="flex justify-between mt-3 gap-1">
-				{STEP_LABELS.map((label, i) => (
+				{stepLabels.map((label, i) => (
 					<div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0">
 						<div
 							className={`w-3 h-3 rounded-full transition-all duration-300 flex items-center justify-center ${
@@ -175,9 +187,12 @@ export function Confetti({ show }: ConfettiProps) {
 interface PersuasionPopupProps {
 	show: boolean;
 	onClose: () => void;
+	title?: string;
+	description?: ReactNode;
+	buttonText?: string;
 }
 
-export function PersuasionPopup({ show, onClose }: PersuasionPopupProps) {
+export function PersuasionPopup({ show, onClose, title, description, buttonText }: PersuasionPopupProps) {
 	if (!show) return null;
 
 	return (
@@ -187,16 +202,16 @@ export function PersuasionPopup({ show, onClose }: PersuasionPopupProps) {
 					<TrendingUp size={28} className="text-blue-600" />
 				</div>
 				<h3 className="text-lg font-bold text-gray-900 mb-2">
-					You&apos;re almost there!
+					{title ?? "You're almost there!"}
 				</h3>
 				<p className="text-sm text-gray-600 mb-4">
-					Complete your profile to increase match accuracy by <span className="font-semibold text-blue-600">3x</span>. Just a few more details!
+					{description ?? <>Complete your profile to increase match accuracy by <span className="font-semibold text-blue-600">3x</span>. Just a few more details!</>}
 				</p>
 				<button
 					onClick={onClose}
 					className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all text-sm"
 				>
-					Let&apos;s finish it
+					{buttonText ?? "Let's finish it"}
 				</button>
 			</div>
 		</div>

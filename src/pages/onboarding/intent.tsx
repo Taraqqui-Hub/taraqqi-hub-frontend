@@ -5,11 +5,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/router";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { preferencesApi } from "@/lib/api";
 
 export default function IntentPage() {
+	const { t } = useTranslation();
 	const router = useRouter();
 	const { isLoading: authLoading, checkAuth } = useAuthStore();
 	const [saving, setSaving] = useState(false);
@@ -44,17 +46,17 @@ export default function IntentPage() {
 			// Navigate to KYC
 			router.push("/kyc");
 		} catch (err: any) {
-			setError(err.response?.data?.error || "Failed to save preferences");
+			setError(err.response?.data?.error || t("onboarding.intent.failedToSave"));
 		} finally {
 			setSaving(false);
 		}
 	};
 
     const options = [
-        { id: "job_search", label: "I am looking for a job now" },
-        { id: "passive", label: "I want to keep my profile for future opportunities" },
-        { id: "skills", label: "I want skill development programs" },
-        { id: "community", label: "I want community updates" },
+        { id: "job_search", label: t("onboarding.intent.jobNow") },
+        { id: "passive", label: t("onboarding.intent.futureOpportunities") },
+        { id: "skills", label: t("onboarding.intent.skillPrograms") },
+        { id: "community", label: t("onboarding.intent.communityUpdates") },
     ];
 
 	return (
@@ -65,13 +67,13 @@ export default function IntentPage() {
                         <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
                             <div className="h-full bg-blue-600 w-2/3"></div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2 text-right">Step 2 of 3</p>
+                        <p className="text-xs text-gray-500 mt-2 text-right">{t("onboarding.intent.step")}</p>
                     </div>
 
 					<div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
-						<h2 className="text-xl font-bold text-[#0F172A] mb-2">What are you looking for?</h2>
+						<h2 className="text-xl font-bold text-[#0F172A] mb-2">{t("onboarding.intent.title")}</h2>
 						<p className="text-[#475569] text-sm mb-6">
-							Help us personalize your experience.
+							{t("onboarding.intent.subtitle")}
 						</p>
 
 						<div className="space-y-3 mb-8">
@@ -112,7 +114,7 @@ export default function IntentPage() {
 							disabled={saving}
 							className="w-full py-3 px-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md shadow-sm transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
 						>
-							{saving ? "Saving..." : "Continue"}
+							{saving ? t("onboarding.intent.saving") : t("onboarding.intent.continue")}
 						</button>
 					</div>
 				</div>

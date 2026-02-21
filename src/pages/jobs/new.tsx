@@ -1,9 +1,9 @@
 /**
  * Post New Job – Simplified Wizard
- * Intuitive 5-step flow with Pincode prefill & Enhanced Selection
+ * Intuitive 5-step flow with address (line 1, line 2, city, district, state, PIN)
  */
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
@@ -12,12 +12,14 @@ import {
 	Briefcase, MapPin, FileText, 
 	DollarSign, Users, ArrowRight, 
 	Trophy, Sparkles, AlertCircle, CheckCircle,
-	Search, Loader2, Building, Map
+	Building, Map
 } from "lucide-react";
 
 // Reuse UI components
 import QuestCard from "@/components/profile/QuestCard";
 import MultiSelect from "@/components/common/MultiSelect";
+import { INDIAN_STATES_DISTRICTS } from "@/data/indianStatesDistricts";
+import { getFormTypeForCategory, type JobFormType } from "@/data/jobCategoryFormConfig";
 
 // Comprehensive Categories List covering all sectors
 const CATEGORIES = [
@@ -162,14 +164,6 @@ const BENEFITS_OPTIONS = [
 	{ id: "health_insurance", label: "Health Insurance" },
 ];
 
-const INDIAN_STATES = [
-	"Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", 
-	"Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", 
-	"Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", 
-	"Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", 
-	"Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry"
-];
-
 const LANGUAGE_OPTIONS = [
     { value: "english", label: "English" },
     { value: "hindi", label: "Hindi" },
@@ -207,12 +201,14 @@ const defaultForm = {
 	category: "",
 	jobType: "full-time",
 	locationType: "onsite",
+	addressLine1: "",
+	addressLine2: "",
 	pincode: "",
 	city: "",
-	district: "", 
-	area: "",
+	district: "",
 	state: "",
 	roleSummary: "",
+	workTiming: "", // For simple form: e.g. "9 AM - 6 PM", "Daily wage"
 	description: "",
 	responsibilities: "",
 	requirements: "",
@@ -228,6 +224,7 @@ const defaultForm = {
 	benefits: [] as string[],
 	preferredLanguage: [] as string[],
 	freshersAllowed: "",
+	ageCategory: "", // "" | "none" | "youth" | "adult" | "senior" | "custom"
 	ageMin: "",
 	ageMax: "",
 	genderPreference: "",
@@ -237,13 +234,6 @@ const defaultForm = {
 	isResumeRequired: false,
 	status: "draft",
 };
-
-interface PincodeLookupState {
-	loading: boolean;
-	error: string | null;
-	success: boolean;
-	places: string[];
-}
 
 export default function PostJobPage() {
 	const router = useRouter();
@@ -259,17 +249,38 @@ export default function PostJobPage() {
 		overview: false,
 		details: false,
 		compensation: false,
-		preferences: false
+		preferences: false,
+		workAndPay: false,
 	});
 
-	// Pincode Lookup State
-	const lastLookedUpPincode = useRef<string | null>(null);
-	const [lookupState, setLookupState] = useState<PincodeLookupState>({
-		loading: false,
-		error: null,
-		success: false,
-		places: [],
-	});
+	// State/District options (like profile)
+	const stateOptions = useMemo(() => 
+		INDIAN_STATES_DISTRICTS.map(s => ({ value: s.state, label: s.state })), 
+	[]);
+	const districtOptions = useMemo(() => {
+		if (formData.state) {
+			const stateData = INDIAN_STATES_DISTRICTS.find(s => s.state === formData.state);
+			return stateData?.districts.map(d => ({ value: d, label: d })) || [];
+		}
+		return INDIAN_STATES_DISTRICTS.flatMap(s => 
+			s.districts.map(d => ({ value: `${d}|${s.state}`, label: `${d} (${s.state})` }))
+		);
+	}, [formData.state]);
+
+	const selectedDistrictValue = useMemo(() => {
+		if (!formData.district) return [];
+		if (formData.state) return [formData.district];
+		const found = INDIAN_STATES_DISTRICTS.find(s => s.districts.includes(formData.district));
+		return found ? [`${formData.district}|${found.state}`] : [];
+	}, [formData.district, formData.state]);
+
+	// Category-driven form type: simple (labor/field), standard, or full
+	const formType: JobFormType = useMemo(
+		() => getFormTypeForCategory(formData.category),
+		[formData.category]
+	);
+	const isSimple = formType === "simple";
+	const isFull = formType === "full";
 
 	// Check eligibility
 	useEffect(() => {
@@ -281,71 +292,6 @@ export default function PostJobPage() {
 			.catch(() => setCanPost({ allowed: false }));
 	}, []);
 
-	// Pincode Lookup Logic
-	const lookupPincode = useCallback(async (pincode: string) => {
-		if (pincode.length !== 6) {
-			setLookupState({ loading: false, error: null, success: false, places: [] });
-			return;
-		}
-		if (lastLookedUpPincode.current === pincode) return;
-
-		setLookupState({ loading: true, error: null, success: false, places: [] });
-
-		try {
-			const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-			const result = await response.json();
-
-			if (result[0]?.Status === "Success" && result[0]?.PostOffice?.length > 0) {
-				const postOffice = result[0].PostOffice[0];
-				
-				// Keep track of looked up pincode
-				lastLookedUpPincode.current = pincode;
-
-				let city = postOffice.Name;
-				if (!city || city === "NA") city = postOffice.Division;
-				if (!city || city === "NA") city = postOffice.District;
-
-				setFormData((prev) => ({
-					...prev,
-					city: city || "",
-					district: postOffice.District || "",
-					state: postOffice.State || "",
-					area: postOffice.Name !== city ? postOffice.Name : "", 
-				}));
-
-				setLookupState({
-					loading: false,
-					error: null,
-					success: true,
-						places: result[0].PostOffice.map((po: { Name: string }) => po.Name),
-				});
-			} else {
-				setLookupState({
-					loading: false,
-					error: "Invalid pincode.",
-					success: false,
-					places: [],
-				});
-			}
-		} catch {
-			setLookupState({
-				loading: false, 
-				error: "Lookup failed.", 
-				success: false, 
-				places: [] 
-			});
-		}
-	}, []);
-
-	// Debounce Pincode
-	useEffect(() => {
-		const pincode = formData.pincode || "";
-		if (pincode.length === 6 && pincode !== lastLookedUpPincode.current) {
-			const timer = setTimeout(() => lookupPincode(pincode), 500);
-			return () => clearTimeout(timer);
-		}
-	}, [formData.pincode, lookupPincode]);
-
 	// Handle input changes
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -353,9 +299,7 @@ export default function PostJobPage() {
 		const { name, value, type } = e.target;
 		
 		if (name === "pincode") {
-			const safeValue = value.replace(/\D/g, "").slice(0, 6);
-			if (safeValue !== lastLookedUpPincode.current) lastLookedUpPincode.current = null;
-			setFormData((prev) => ({ ...prev, pincode: safeValue }));
+			setFormData((prev) => ({ ...prev, pincode: value.replace(/\D/g, "").slice(0, 6) }));
 			return;
 		}
 
@@ -371,6 +315,10 @@ export default function PostJobPage() {
 						: prev.benefits.filter((x) => x !== name),
 				}));
 			}
+			return;
+		}
+		if (name === "maxApplications" && !value) {
+			setFormData((prev) => ({ ...prev, maxApplications: "", autoCloseOnLimit: false }));
 			return;
 		}
 		setFormData((prev) => ({
@@ -390,24 +338,29 @@ export default function PostJobPage() {
 	};
 
 	const buildPayload = (statusOverride?: string) => {
+		// For simple (labor) jobs: description = what is the work + timing; resume never required
+		const description = isSimple
+			? [formData.roleSummary?.trim(), formData.workTiming?.trim() && `Timing: ${formData.workTiming.trim()}`].filter(Boolean).join("\n\n") || formData.description
+			: formData.description;
 		return {
 			title: formData.title,
 			category: formData.category || undefined,
 			jobType: formData.jobType,
 			locationType: formData.locationType,
-			pincode: formData.pincode || undefined,
-			city: formData.city || undefined,
+			address: formData.addressLine1?.trim() || undefined,
+			addressLine2: formData.addressLine2?.trim() || undefined,
+			pincode: formData.pincode?.trim() || undefined,
+			city: formData.city?.trim() || undefined,
 			district: formData.district || undefined,
-			area: formData.area || undefined, 
 			state: formData.state || undefined,
 			roleSummary: formData.roleSummary || undefined,
-			description: formData.description,
-			requirements: formData.requirements || undefined,
-			responsibilities: formData.responsibilities || undefined,
-			skillsRequired: formData.skillsRequired.length > 0 ? formData.skillsRequired : undefined,
+			description: description || (formData.roleSummary?.trim() || "Job opening"),
+			requirements: isSimple ? undefined : (formData.requirements || undefined),
+			responsibilities: isSimple ? undefined : (formData.responsibilities || undefined),
+			skillsRequired: isSimple ? undefined : (formData.skillsRequired.length > 0 ? formData.skillsRequired : undefined),
 			minExperienceYears: formData.minExperienceYears,
 			maxExperienceYears: formData.maxExperienceYears ? parseInt(formData.maxExperienceYears as string, 10) : undefined,
-			educationRequired: formData.educationRequired || undefined,
+			educationRequired: isSimple ? undefined : (formData.educationRequired || undefined),
 			salaryMin: formData.salaryMin ? parseFloat(formData.salaryMin as string) : undefined,
 			salaryMax: formData.salaryMax ? parseFloat(formData.salaryMax as string) : undefined,
 			salaryType: formData.salaryType,
@@ -422,7 +375,7 @@ export default function PostJobPage() {
 			applicationDeadline: formData.applicationDeadline || undefined,
 			maxApplications: formData.maxApplications ? parseInt(formData.maxApplications as string, 10) : undefined,
 			autoCloseOnLimit: formData.autoCloseOnLimit,
-			isResumeRequired: formData.isResumeRequired,
+			isResumeRequired: isSimple ? false : formData.isResumeRequired,
 			status: statusOverride || formData.status,
 		};
 	};
@@ -450,21 +403,37 @@ export default function PostJobPage() {
 	// Validation helpers
 	const validateOverview = () => {
 		const basicValid = formData.title.trim().length >= 5 && formData.category && formData.jobType && formData.locationType;
-		const locationValid = formData.locationType === "remote" || (!!formData.city?.trim() && !!formData.state?.trim());
+		const locationValid = formData.locationType === "remote" || (
+			!!formData.addressLine1?.trim() &&
+			!!formData.city?.trim() &&
+			!!formData.district?.trim() &&
+			!!formData.state?.trim() &&
+			!!formData.pincode?.trim() &&
+			formData.pincode.length === 6
+		);
 		return basicValid && locationValid;
 	};
 
 	const validateDetails = () => {
-		return formData.description.trim().length >= 50 && formData.skillsRequired.length > 0 && formData.educationRequired;
+		if (isSimple) return true;
+		return formData.description.trim().length >= 1 && formData.skillsRequired.length > 0 && formData.educationRequired;
+	};
+
+	const validateWorkAndPay = () => {
+		const hasWork = formData.roleSummary.trim().length >= 1;
+		const hasPay = (formData.salaryMin && parseFloat(formData.salaryMin as string) > 0) || formData.hideSalary;
+		return hasWork && hasPay;
 	};
 
 	const validateCompensation = () => {
 		return (formData.salaryMin && parseFloat(formData.salaryMin as string) > 0) || formData.hideSalary;
 	};
 
-	const totalSteps = 5;
-	const completedCount = Object.values(completedSections).filter(Boolean).length;
-	const progressPercentage = Math.round((completedCount / (totalSteps - 1)) * 100);
+	const totalSteps = isSimple ? 4 : 5;
+	const completedCount = isSimple
+		? [completedSections.overview, completedSections.workAndPay, completedSections.preferences].filter(Boolean).length
+		: [completedSections.overview, completedSections.details, completedSections.compensation, completedSections.preferences].filter(Boolean).length;
+	const progressPercentage = totalSteps > 1 ? Math.round((completedCount / (totalSteps - 1)) * 100) : 0;
 
 	return (
 		<ProtectedRoute allowedUserTypes={["employer"]}>
@@ -479,7 +448,7 @@ export default function PostJobPage() {
 					<div className="mb-8">
 						<div className="flex justify-between text-sm text-slate-500 mb-2">
 							<span>Progress</span>
-							<span>{completedCount} of 4 steps completed</span>
+							<span>{completedCount} of {totalSteps - 1} steps completed</span>
 						</div>
 						<div className="h-2 bg-slate-100 rounded-full overflow-hidden">
 							<div 
@@ -535,6 +504,9 @@ export default function PostJobPage() {
 											<option value="">Select Category</option>
 											{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
 										</select>
+										{isSimple && formData.category && (
+											<p className="text-xs text-indigo-600 mt-1.5 font-medium">Simple form: we’ll only ask what’s the work, pay, and timing.</p>
+										)}
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">Employment Type *</label>
@@ -564,86 +536,92 @@ export default function PostJobPage() {
 										</div>
 									)}
 
-									{/* Pincode Lookup */}
-									<div className="mb-4">
-										<label className="block text-sm font-medium text-slate-700 mb-1">PIN Code (Auto-fill)</label>
-										<div className="relative">
-											<Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-											<input
-												name="pincode"
-												value={formData.pincode}
-												onChange={handleChange}
-												className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 transition-all ${
-													lookupState.error ? 'border-red-300 focus:border-red-500 focus:ring-red-100' :
-													lookupState.success ? 'border-green-300 focus:border-green-500 focus:ring-green-100' :
-													'border-slate-200 focus:border-blue-500 focus:ring-blue-100'
-												}`}
-												placeholder="Enter 6 digit PIN code"
-												maxLength={6}
-											/>
-											<div className="absolute right-3 top-1/2 -translate-y-1/2">
-												{lookupState.loading && <Loader2 size={18} className="text-blue-500 animate-spin" />}
-												{lookupState.success && <CheckCircle size={18} className="text-green-500" />}
-												{lookupState.error && <AlertCircle size={18} className="text-red-500" />}
-											</div>
-										</div>
-										<p className="text-xs text-slate-500 mt-1">Enter pincode to automatically fill city, district, and state.</p>
-									</div>
-									
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+									<div className="space-y-4">
 										<div>
-											<label className="block text-sm font-medium text-slate-700 mb-1">City / Town {formData.locationType !== "remote" && "*"}</label>
+											<label className="block text-sm font-medium text-slate-700 mb-1">Address Line 1 {formData.locationType !== "remote" && <span className="text-rose-500">*</span>}</label>
 											<div className="relative">
 												<Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<input 
-													name="city" 
-													value={formData.city} 
-													onChange={handleChange} 
-													className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500" 
-													placeholder="e.g. Mumbai" 
+												<input
+													name="addressLine1"
+													value={formData.addressLine1}
+													onChange={handleChange}
+													className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+													placeholder="House No., Building, Street, Area"
 												/>
 											</div>
 										</div>
 										<div>
-											<label className="block text-sm font-medium text-slate-700 mb-1">District</label>
-											<div className="relative">
-												<MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<input 
-													name="district" 
-													value={formData.district} 
-													onChange={handleChange} 
-													className="w-full pl-10 pr-4 py-2 border border-slate-200 bg-slate-50 text-slate-700 rounded-lg" 
-													placeholder="e.g. Mumbai Suburban" 
-													readOnly // Mostly auto-filled
+											<label className="block text-sm font-medium text-slate-700 mb-1">Address Line 2 <span className="text-slate-400 text-xs">(Optional)</span></label>
+											<input
+												name="addressLine2"
+												value={formData.addressLine2}
+												onChange={handleChange}
+												className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+												placeholder="Landmark or extended address"
+											/>
+										</div>
+										<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+											<div>
+												<label className="block text-sm font-medium text-slate-700 mb-1">City / Town {formData.locationType !== "remote" && <span className="text-rose-500">*</span>}</label>
+												<div className="relative">
+													<Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+													<input
+														name="city"
+														value={formData.city}
+														onChange={handleChange}
+														className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+														placeholder="e.g. Mumbai, Indore"
+													/>
+												</div>
+											</div>
+											<div className="relative z-10">
+												<label className="block text-sm font-medium text-slate-700 mb-1">District {formData.locationType !== "remote" && <span className="text-rose-500">*</span>}</label>
+												<MultiSelect
+													options={districtOptions}
+													selected={selectedDistrictValue}
+													onChange={(selected) => {
+														if (selected.length === 0) setFormData((p) => ({ ...p, district: "" }));
+														else {
+															const val = selected[0];
+															if (formData.state) setFormData((p) => ({ ...p, district: val }));
+															else {
+																const [d, s] = val.split("|");
+																setFormData((p) => ({ ...p, district: d, state: s }));
+															}
+														}
+													}}
+													placeholder="Select District"
+													searchPlaceholder="Search District..."
+													singleSelect
 												/>
 											</div>
-										</div>
-										<div>
-											<label className="block text-sm font-medium text-slate-700 mb-1">Area / Locality</label>
-											<div className="relative">
-												<MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<input 
-													name="area" 
-													value={formData.area} 
-													onChange={handleChange} 
-													className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500" 
-													placeholder="e.g. Andheri West" 
+											<div className="relative z-10">
+												<label className="block text-sm font-medium text-slate-700 mb-1">State / UT {formData.locationType !== "remote" && <span className="text-rose-500">*</span>}</label>
+												<MultiSelect
+													options={stateOptions}
+													selected={formData.state ? [formData.state] : []}
+													onChange={(selected) => {
+														const newState = selected[0] || "";
+														setFormData((p) => ({ ...p, state: newState, district: newState !== p.state ? "" : p.district }));
+													}}
+													placeholder="Select State"
+													searchPlaceholder="Search State..."
+													singleSelect
 												/>
 											</div>
-										</div>
-										<div>
-											<label className="block text-sm font-medium text-slate-700 mb-1">State / UT {formData.locationType !== "remote" && "*"}</label>
-											<div className="relative">
-												<Map size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-												<select 
-													name="state" 
-													value={formData.state} 
-													onChange={handleChange} 
-													className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 appearance-none bg-white"
-												>
-													<option value="">Select State</option>
-													{INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-												</select>
+											<div>
+												<label className="block text-sm font-medium text-slate-700 mb-1">PIN Code {formData.locationType !== "remote" && <span className="text-rose-500">*</span>}</label>
+												<div className="relative">
+													<MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+													<input
+														name="pincode"
+														value={formData.pincode}
+														onChange={handleChange}
+														className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+														placeholder="e.g. 452001"
+														maxLength={6}
+													/>
+												</div>
 											</div>
 										</div>
 									</div>
@@ -653,7 +631,7 @@ export default function PostJobPage() {
 									<button 
 										type="button" 
 										disabled={!validateOverview()}
-										onClick={() => handleCompleteSection("overview", "details")}
+										onClick={() => handleCompleteSection("overview", isSimple ? "workAndPay" : "details")}
 										className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 disabled:opacity-50 transition-all flex items-center gap-2"
 									>
 										Next Step <ArrowRight size={18} />
@@ -662,7 +640,139 @@ export default function PostJobPage() {
 							</div>
 						</QuestCard>
 
-						{/* Step 2: Job Details */}
+						{/* Step 2 (Simple only): Work & Pay — What is the work? Pay. Timing. */}
+						{isSimple && (
+						<QuestCard
+							title="Work & Pay"
+							description="What is the work? How much do we pay? Timing."
+							icon={<DollarSign size={20} />}
+							showXp={false}
+							completed={completedSections.workAndPay}
+							locked={!completedSections.overview}
+							hidden={!completedSections.overview && expandedSection !== "workAndPay"}
+							stepNumber={2}
+							totalSteps={totalSteps}
+							expanded={expandedSection === "workAndPay"}
+							onToggle={() => setExpandedSection(expandedSection === "workAndPay" ? null : "workAndPay")}
+						>
+							<div className="space-y-5">
+								<div>
+									<label className="block text-sm font-bold text-slate-700 mb-1.5">What is the work? <span className="text-rose-500">*</span></label>
+									<textarea
+										name="roleSummary"
+										value={formData.roleSummary}
+										onChange={handleChange}
+										rows={3}
+										className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+										placeholder="e.g. Loading/unloading goods at warehouse. Packing and labeling. Helping with daily site work."
+									/>
+									<p className="text-xs text-slate-500 mt-1">Briefly describe what the worker will do.</p>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-slate-700 mb-1">Work timing <span className="text-slate-400 text-xs">(Optional)</span></label>
+									<input
+										name="workTiming"
+										value={formData.workTiming}
+										onChange={handleChange}
+										className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+										placeholder="e.g. 9 AM - 6 PM, Daily wage, Flexible"
+									/>
+								</div>
+								<div className="border-t border-slate-100 pt-4">
+									<h4 className="text-sm font-semibold text-slate-900 mb-3">Pay</h4>
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label className="block text-sm font-medium text-slate-700 mb-1">Min Salary (₹) <span className="text-rose-500">*</span></label>
+											<input type="number" name="salaryMin" value={formData.salaryMin} onChange={handleChange} min={0} className="w-full px-4 py-2 border border-slate-200 rounded-lg" />
+										</div>
+										<div>
+											<label className="block text-sm font-medium text-slate-700 mb-1">Max Salary (₹)</label>
+											<input type="number" name="salaryMax" value={formData.salaryMax} onChange={handleChange} min={0} className="w-full px-4 py-2 border border-slate-200 rounded-lg" />
+										</div>
+									</div>
+									<div className="flex flex-wrap gap-4 items-center mt-4">
+										<div>
+											<label className="block text-sm font-medium text-slate-700 mb-1">Payment frequency</label>
+											<select name="salaryType" value={formData.salaryType} onChange={handleChange} className="px-3 py-2 border border-slate-200 rounded-lg bg-white w-40">
+												<option value="monthly">Monthly</option>
+												<option value="yearly">Yearly</option>
+												<option value="weekly">Weekly</option>
+											</select>
+										</div>
+										<label className="flex items-center gap-2 cursor-pointer">
+											<input type="checkbox" checked={formData.isSalaryNegotiable} onChange={(e) => setFormData((p) => ({ ...p, isSalaryNegotiable: e.target.checked }))} className="rounded border-slate-300" />
+											<span className="text-sm text-slate-700">Negotiable</span>
+										</label>
+										<label className="flex items-center gap-2 cursor-pointer">
+											<input type="checkbox" checked={formData.hideSalary} onChange={(e) => setFormData((p) => ({ ...p, hideSalary: e.target.checked }))} className="rounded border-slate-300" />
+											<span className="text-sm text-slate-700">Hide from listing</span>
+										</label>
+									</div>
+								</div>
+								<div className="border-t border-slate-100 pt-4">
+									<label className="block text-sm font-medium text-slate-700 mb-2">Benefits (optional)</label>
+									<div className="flex flex-wrap gap-2 mb-3">
+										{BENEFITS_OPTIONS.map((b) => (
+											<label key={b.id} className={`
+												flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-all
+												${formData.benefits.includes(b.id) ? "bg-indigo-50 border-indigo-200 text-indigo-700" : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"}
+											`}>
+												<input type="checkbox" checked={formData.benefits.includes(b.id)} onChange={(e) => handleChange(e as React.ChangeEvent<HTMLInputElement>)} name={b.id} className="hidden" />
+												<span>{b.label}</span>
+												{formData.benefits.includes(b.id) && <CheckCircle size={14} className="text-indigo-600" />}
+											</label>
+										))}
+									</div>
+									<div className="flex flex-wrap gap-2 items-center">
+										<input
+											type="text"
+											placeholder="Add custom (e.g. Food, Overtime pay)"
+											className="flex-1 min-w-[140px] px-3 py-2 border border-slate-200 rounded-lg text-sm"
+											onKeyDown={(e) => {
+												if (e.key === "Enter") {
+													e.preventDefault();
+													const input = e.target as HTMLInputElement;
+													const v = input.value.trim();
+													if (v && !formData.benefits.includes(v)) {
+														setFormData((p) => ({ ...p, benefits: [...p.benefits, v] }));
+														input.value = "";
+													}
+												}
+											}}
+											id="custom-benefit-simple"
+										/>
+										<button
+											type="button"
+											onClick={() => {
+												const input = document.getElementById("custom-benefit-simple") as HTMLInputElement;
+												const v = input?.value?.trim();
+												if (v && !formData.benefits.includes(v)) {
+													setFormData((p) => ({ ...p, benefits: [...p.benefits, v] }));
+													if (input) input.value = "";
+												}
+											}}
+											className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200"
+										>
+											Add
+										</button>
+									</div>
+								</div>
+								<div className="pt-2 flex justify-end">
+									<button
+										type="button"
+										disabled={!validateWorkAndPay()}
+										onClick={() => handleCompleteSection("workAndPay", "preferences")}
+										className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 disabled:opacity-50 transition-all flex items-center gap-2"
+									>
+										Next Step <ArrowRight size={18} />
+									</button>
+								</div>
+							</div>
+						</QuestCard>
+						)}
+
+						{/* Step 2 (Full/Standard): Job Details */}
+						{!isSimple && (
 						<QuestCard
 							title="Job Details"
 							description="Description, skills, and requirements"
@@ -682,9 +792,8 @@ export default function PostJobPage() {
 									<textarea name="roleSummary" value={formData.roleSummary} onChange={handleChange} rows={2} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="Brief overview of the role..." />
 								</div>
 								<div>
-									<label className="block text-sm font-medium text-slate-700 mb-1">Full Description * (min 50 chars)</label>
-									<textarea name="description" value={formData.description} onChange={handleChange} required minLength={50} rows={5} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="Detailed job description..." />
-									<p className="text-xs text-right text-slate-500 mt-1">{formData.description.length}/50 characters</p>
+									<label className="block text-sm font-medium text-slate-700 mb-1">Full Description <span className="text-rose-500">*</span></label>
+									<textarea name="description" value={formData.description} onChange={handleChange} required rows={5} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="Detailed job description. Add as much detail as you need." />
 								</div>
 								<div>
 									<label className="block text-sm font-medium text-slate-700 mb-1">Key Responsibilities</label>
@@ -738,8 +847,10 @@ export default function PostJobPage() {
 								</div>
 							</div>
 						</QuestCard>
+						)}
 
-						{/* Step 3: Compensation */}
+						{/* Step 3 (Full/Standard): Compensation */}
+						{!isSimple && (
 						<QuestCard
 							title="Compensation & Benefits"
 							description="Salary range and perks"
@@ -789,7 +900,7 @@ export default function PostJobPage() {
 
 								<div className="border-t border-slate-100 pt-4">
 									<label className="block text-sm font-medium text-slate-700 mb-3">Benefits & Perks</label>
-									<div className="flex flex-wrap gap-2">
+									<div className="flex flex-wrap gap-2 mb-4">
 										{BENEFITS_OPTIONS.map((b) => (
 											<label key={b.id} className={`
 												flex items-center gap-2 px-3 py-2 rounded-lg border text-sm cursor-pointer transition-all
@@ -803,6 +914,56 @@ export default function PostJobPage() {
 											</label>
 										))}
 									</div>
+									<div className="flex flex-wrap gap-2 items-center">
+										<input
+											type="text"
+											placeholder="Add custom benefit (e.g. Work from home, Gym)"
+											className="flex-1 min-w-[180px] px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
+											onKeyDown={(e) => {
+												if (e.key === "Enter") {
+													e.preventDefault();
+													const input = e.target as HTMLInputElement;
+													const v = input.value.trim();
+													if (v && !formData.benefits.includes(v)) {
+														setFormData((p) => ({ ...p, benefits: [...p.benefits, v] }));
+														input.value = "";
+													}
+												}
+											}}
+											id="custom-benefit-input"
+										/>
+										<button
+											type="button"
+											onClick={() => {
+												const input = document.getElementById("custom-benefit-input") as HTMLInputElement;
+												const v = input?.value?.trim();
+												if (v && !formData.benefits.includes(v)) {
+													setFormData((p) => ({ ...p, benefits: [...p.benefits, v] }));
+													if (input) input.value = "";
+												}
+											}}
+											className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+										>
+											Add
+										</button>
+									</div>
+									{formData.benefits.filter((b) => !BENEFITS_OPTIONS.some((opt) => opt.id === b)).length > 0 && (
+										<div className="flex flex-wrap gap-2 mt-3">
+											{formData.benefits.filter((b) => !BENEFITS_OPTIONS.some((opt) => opt.id === b)).map((custom) => (
+												<span key={custom} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm">
+													{custom}
+													<button
+														type="button"
+														onClick={() => setFormData((p) => ({ ...p, benefits: p.benefits.filter((x) => x !== custom) }))}
+														className="text-indigo-500 hover:text-indigo-700"
+														aria-label="Remove"
+													>
+														×
+													</button>
+												</span>
+											))}
+										</div>
+									)}
 								</div>
 
 								<div className="pt-2 flex justify-end">
@@ -817,17 +978,18 @@ export default function PostJobPage() {
 								</div>
 							</div>
 						</QuestCard>
+						)}
 
-						{/* Step 4: Preferences & Settings */}
+						{/* Step 3 (Simple) or 4 (Full): Preferences & Settings */}
 						<QuestCard
 							title="Preferences & Settings"
 							description="Hiring criteria and application rules"
 							icon={<Users size={20} />}
 							showXp={false}
 							completed={completedSections.preferences}
-							locked={!completedSections.compensation}
-							hidden={!completedSections.compensation && expandedSection !== "preferences"}
-							stepNumber={4}
+							locked={isSimple ? !completedSections.workAndPay : !completedSections.compensation}
+							hidden={(isSimple ? !completedSections.workAndPay : !completedSections.compensation) && expandedSection !== "preferences"}
+							stepNumber={isSimple ? 3 : 4}
 							totalSteps={totalSteps}
 							expanded={expandedSection === "preferences"}
 							onToggle={() => setExpandedSection(expandedSection === "preferences" ? null : "preferences")}
@@ -855,16 +1017,61 @@ export default function PostJobPage() {
 									</div>
 								</div>
 								
-								<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+								<div className="space-y-4">
 									<div>
-										<label className="block text-sm font-medium text-slate-700 mb-1">Age Min</label>
-										<input type="number" name="ageMin" value={formData.ageMin} onChange={handleChange} min={18} max={100} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="18" />
+										<label className="block text-sm font-medium text-slate-700 mb-1">Job age category</label>
+										<select
+											name="ageCategory"
+											value={formData.ageCategory}
+											onChange={(e) => {
+												const v = e.target.value;
+												setFormData((p) => {
+													const next = { ...p, ageCategory: v };
+													if (v === "none" || v === "") {
+														next.ageMin = "";
+														next.ageMax = "";
+													} else if (v === "youth") {
+														next.ageMin = "18";
+														next.ageMax = "25";
+													} else if (v === "adult") {
+														next.ageMin = "26";
+														next.ageMax = "45";
+													} else if (v === "senior") {
+														next.ageMin = "46";
+														next.ageMax = "65";
+													}
+													return next;
+												});
+											}}
+											className="w-full px-4 py-2 border border-slate-200 rounded-lg"
+										>
+											<option value="">No preference</option>
+											<option value="youth">Youth (18–25)</option>
+											<option value="adult">Adult (26–45)</option>
+											<option value="senior">Senior (46–65)</option>
+											<option value="custom">Custom range</option>
+										</select>
 									</div>
+									{formData.ageCategory === "custom" && (
+										<div className="grid grid-cols-2 gap-4">
+											<div>
+												<label className="block text-sm font-medium text-slate-700 mb-1">Age Min <span className="text-rose-500">*</span></label>
+												<input type="number" name="ageMin" value={formData.ageMin} onChange={handleChange} min={18} max={100} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="18" />
+											</div>
+											<div>
+												<label className="block text-sm font-medium text-slate-700 mb-1">Age Max <span className="text-rose-500">*</span></label>
+												<input type="number" name="ageMax" value={formData.ageMax} onChange={handleChange} min={18} max={100} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="60" />
+											</div>
+										</div>
+									)}
+									{formData.ageCategory && formData.ageCategory !== "custom" && (
+										<p className="text-sm text-slate-600">
+											Age range: {formData.ageMin}–{formData.ageMax} years
+										</p>
+									)}
+								</div>
+								<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 									<div>
-										<label className="block text-sm font-medium text-slate-700 mb-1">Age Max</label>
-										<input type="number" name="ageMax" value={formData.ageMax} onChange={handleChange} min={18} max={100} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="60" />
-									</div>
-									<div className="col-span-2 md:col-span-1">
 										<label className="block text-sm font-medium text-slate-700 mb-1">Freshers Allowed?</label>
 										<select name="freshersAllowed" value={formData.freshersAllowed} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg">
 											<option value="">—</option>
@@ -886,14 +1093,24 @@ export default function PostJobPage() {
 											<input type="number" name="maxApplications" value={formData.maxApplications} onChange={handleChange} min={1} className="w-full px-4 py-2 border border-slate-200 rounded-lg" placeholder="No Limit" />
 										</div>
 									</div>
-									<label className="flex items-center gap-2 cursor-pointer">
-										<input type="checkbox" checked={formData.autoCloseOnLimit} onChange={(e) => setFormData((p) => ({ ...p, autoCloseOnLimit: e.target.checked }))} className="rounded border-slate-300" />
+									<label className={`flex items-center gap-2 cursor-pointer ${!formData.maxApplications ? "opacity-60 cursor-not-allowed" : ""}`}>
+										<input
+											type="checkbox"
+											checked={formData.autoCloseOnLimit}
+											onChange={(e) => setFormData((p) => ({ ...p, autoCloseOnLimit: e.target.checked }))}
+											disabled={!formData.maxApplications}
+											className="rounded border-slate-300"
+										/>
 										<span className="text-sm text-slate-700">Auto-close job when limit reached</span>
 									</label>
+									{!formData.maxApplications && <p className="text-xs text-slate-500 mt-1">Set a max application limit above to enable this option.</p>}
+									{!isSimple && (
 									<label className="flex items-center gap-2 cursor-pointer mt-2">
 										<input type="checkbox" name="isResumeRequired" checked={formData.isResumeRequired} onChange={handleChange} className="rounded border-slate-300" />
 										<span className="text-sm text-slate-700">Require Resume/CV from applicants</span>
 									</label>
+									)}
+									{isSimple && <p className="text-xs text-slate-500 mt-2">Resume is not required for this type of job.</p>}
 								</div>
 
 								<div className="pt-2 flex justify-end">
@@ -917,7 +1134,7 @@ export default function PostJobPage() {
 							completed={false}
 							locked={!completedSections.preferences}
 							hidden={!completedSections.preferences && expandedSection !== "preview"}
-							stepNumber={5}
+							stepNumber={isSimple ? 4 : 5}
 							totalSteps={totalSteps}
 							expanded={expandedSection === "preview"}
 							onToggle={() => setExpandedSection(expandedSection === "preview" ? null : "preview")}
@@ -938,7 +1155,7 @@ export default function PostJobPage() {
 									<div className="space-y-4 text-sm text-slate-700">
 										<div>
 											<p className="font-medium text-slate-900">Location:</p>
-											<p>{formData.locationType === "remote" ? "Remote" : [formData.city, formData.area, formData.district, formData.state].filter(Boolean).join(", ")}</p>
+											<p>{formData.locationType === "remote" ? "Remote" : [formData.addressLine1, formData.addressLine2, formData.city, formData.district, formData.state, formData.pincode].filter(Boolean).join(", ")}</p>
 										</div>
 										{(!formData.hideSalary && (formData.salaryMin || formData.salaryMax)) && (
 											<div>
@@ -947,8 +1164,12 @@ export default function PostJobPage() {
 											</div>
 										)}
 										<div>
-											<p className="font-medium text-slate-900">Description:</p>
-											<p className="line-clamp-3 text-slate-600">{formData.description || "No description provided."}</p>
+											<p className="font-medium text-slate-900">{isSimple ? "Work & Pay:" : "Description:"}</p>
+											<p className="line-clamp-3 text-slate-600">
+												{isSimple
+													? [formData.roleSummary, formData.workTiming && `Timing: ${formData.workTiming}`].filter(Boolean).join(" · ") || "No details."
+													: formData.description || "No description provided."}
+											</p>
 										</div>
 									</div>
 								</div>

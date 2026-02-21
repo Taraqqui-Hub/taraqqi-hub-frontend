@@ -47,7 +47,7 @@ export default function ApplicantsPage() {
 	const router = useRouter();
 	const { id } = router.query;
 
-	const [job, setJob] = useState<{ id: string; title: string } | null>(null);
+	const [job, setJob] = useState<{ id: string; title: string; isResumeRequired?: boolean } | null>(null);
 	const [applicants, setApplicants] = useState<Applicant[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -235,19 +235,26 @@ export default function ApplicantsPage() {
 
 											{/* Action Bar */}
 											<div className="mt-5 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4">
-												<div className="flex items-center gap-3">
-													{app.profile?.resumeUrl && (
+												<div className="flex items-center gap-3 flex-wrap">
+													{/* Resume: show only when job requires it and we have a URL; otherwise state clearly */}
+													{job?.isResumeRequired === false ? (
+														<span className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg">
+															Resume not required
+														</span>
+													) : app.profile?.resumeUrl ? (
 														<a
 															href={app.profile.resumeUrl}
 															target="_blank"
 															rel="noopener noreferrer"
 															className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition shadow-sm"
-															onClick={() => handleViewProfile(app.id)}
 														>
 															📄 View Resume
 														</a>
+													) : (
+														<span className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-800 text-sm font-medium rounded-lg border border-amber-200">
+															No resume provided
+														</span>
 													)}
-													
 													{!app.viewedAt && (
 														<button
 															onClick={() => handleViewProfile(app.id)}

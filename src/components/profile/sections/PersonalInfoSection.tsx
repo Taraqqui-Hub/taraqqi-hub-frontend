@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { User, Calendar, Save, Loader2, Camera, X } from "lucide-react";
 import MultiSelect from "../../common/MultiSelect";
 import useCloudinaryUpload from "@/hooks/useCloudinaryUpload";
@@ -77,6 +78,7 @@ const INDIAN_LANGUAGES = [
 ];
 
 export default function PersonalInfoSection({ data, onChange, onSave, onSaveSilent, saving }: PersonalInfoSectionProps) {
+	const { t } = useTranslation();
 	// Sync local state with prop data for languagesKnown
 	const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 	const [isSavingPhoto, setIsSavingPhoto] = useState(false);
@@ -111,13 +113,13 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 
 		// Validate file type
 		if (!file.type.startsWith('image/')) {
-			alert('Please select an image file');
+			alert(t("profileWizard.personal.pleaseSelectImage"));
 			return;
 		}
 
 		// Validate file size (max 2MB)
 		if (file.size > 2 * 1024 * 1024) {
-			alert('Image must be smaller than 2MB');
+			alert(t("profileWizard.personal.imageMaxSize"));
 			return;
 		}
 
@@ -137,7 +139,7 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 			}
 		} catch (error) {
 			console.error('Error uploading photo:', error);
-			alert('Failed to upload photo. Please try again.');
+			alert(t("profileWizard.personal.failedToUploadPhoto"));
 		} finally {
 			setIsSavingPhoto(false);
 		}
@@ -209,15 +211,15 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 					)}
 				</div>
 				<div>
-					<p className="text-sm font-medium text-gray-700">Profile Photo</p>
-					<p className="text-xs text-blue-600">Profiles with photos get 2x more responses</p>
+					<p className="text-sm font-medium text-gray-700">{t("profileWizard.personal.profilePhoto")}</p>
+					<p className="text-xs text-blue-600">{t("profileWizard.personal.profilesWithPhotosGet")}</p>
 				</div>
 			</div>
 
 			{/* Full Name */}
 			<div>
 				<label className="block text-sm font-medium text-gray-700 mb-1">
-					Full Name <span className="text-red-500">*</span>
+					{t("profileWizard.personal.fullName")} <span className="text-red-500">*</span>
 				</label>
 				<div className="relative">
 					<User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -225,7 +227,7 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 						type="text"
 						value={data.fullName || ""}
 						onChange={e => onChange({ ...data, fullName: e.target.value })}
-						placeholder="Enter your full name"
+						placeholder={t("profileWizard.personal.placeholderFullName")}
 						className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm"
 					/>
 				</div>
@@ -236,7 +238,7 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 				<div>
 					<label className="block text-sm font-medium text-gray-700 mb-1">
-						Date of Birth <span className="text-red-500">*</span>
+						{t("profileWizard.personal.dateOfBirth")} <span className="text-red-500">*</span>
 					</label>
 					<div className="relative">
 						<Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -250,13 +252,13 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 				</div>
 				<div>
 					<label className="block text-sm font-medium text-gray-700 mb-1">
-						Gender <span className="text-red-500">*</span>
+						{t("profileWizard.personal.gender")} <span className="text-red-500">*</span>
 					</label>
 					<div className="flex gap-3">
 						{[
-							{ value: "male", label: "Male" },
-							{ value: "female", label: "Female" },
-							{ value: "other", label: "Other" }
+							{ value: "male", label: t("profileWizard.personal.male") },
+							{ value: "female", label: t("profileWizard.personal.female") },
+							{ value: "other", label: t("profileWizard.personal.other") }
 						].map(g => (
 							<button
 								key={g.value}
@@ -281,9 +283,9 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 				options={INDIAN_LANGUAGES}
 				selected={data.motherTongue ? [data.motherTongue.toLowerCase()] : []}
 				onChange={handleMotherTongueChange}
-				label="Mother Tongue"
-				placeholder="Select your mother tongue"
-				searchPlaceholder="Search languages..."
+				label={t("profileWizard.personal.motherTongue")}
+				placeholder={t("profileWizard.personal.selectMotherTongue")}
+				searchPlaceholder={t("profileWizard.personal.searchLanguages")}
 				singleSelect={true}
 			/>
 
@@ -292,9 +294,9 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 				options={INDIAN_LANGUAGES}
 				selected={selectedLanguages}
 				onChange={handleLanguagesChange}
-				label="Languages You Know"
-				placeholder="Select languages you can speak"
-				searchPlaceholder="Search languages..."
+				label={t("profileWizard.personal.languagesYouKnow")}
+				placeholder={t("profileWizard.personal.selectLanguages")}
+				searchPlaceholder={t("profileWizard.personal.searchLanguages")}
 				maxDisplayChips={4}
 			/>
 
@@ -307,10 +309,10 @@ export default function PersonalInfoSection({ data, onChange, onSave, onSaveSile
 				{saving ? (
 					<>
 						<Loader2 size={18} className="animate-spin" />
-						Saving...
+						{t("profileWizard.personal.saving")}
 					</>
 				) : (
-					"Continue → Next Step"
+					t("profileWizard.personal.continueNextStep")
 				)}
 			</button>
 		</div>

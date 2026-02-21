@@ -4,6 +4,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Wrench, X, ChevronDown, Check } from "lucide-react";
 import MultiSelect from "@/components/common/MultiSelect";
 
@@ -22,13 +23,6 @@ interface SkillsSectionProps {
 	onUpdate: (id: string, data: Partial<SkillRecord>) => Promise<void>;
 	saving?: boolean;
 }
-
-const PROFICIENCY_LEVELS = [
-	{ value: "beginner", label: "Beginner", color: "bg-gray-100 text-gray-600" },
-	{ value: "intermediate", label: "Intermediate", color: "bg-blue-100 text-blue-600" },
-	{ value: "advanced", label: "Advanced", color: "bg-green-100 text-green-600" },
-	{ value: "expert", label: "Expert", color: "bg-purple-100 text-purple-600" },
-];
 
 const ALL_SKILLS = [
 	// Technology & Digital
@@ -69,6 +63,13 @@ const ALL_SKILLS = [
 ];
 
 export default function SkillsSection({ skills, onAdd, onBulkAdd, onDelete, onUpdate, saving }: SkillsSectionProps) {
+	const { t } = useTranslation();
+	const PROFICIENCY_LEVELS = useMemo(() => [
+		{ value: "beginner", label: t("profileWizard.skills.beginner"), color: "bg-gray-100 text-gray-600" },
+		{ value: "intermediate", label: t("profileWizard.skills.intermediate"), color: "bg-blue-100 text-blue-600" },
+		{ value: "advanced", label: t("profileWizard.skills.advanced"), color: "bg-green-100 text-green-600" },
+		{ value: "expert", label: t("profileWizard.skills.expert"), color: "bg-purple-100 text-purple-600" },
+	], [t]);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [otherSkills, setOtherSkills] = useState("");
 	const [showOtherSkills, setShowOtherSkills] = useState(false);
@@ -166,9 +167,9 @@ export default function SkillsSection({ skills, onAdd, onBulkAdd, onDelete, onUp
 						options={availableSkillOptions}
 						selected={pendingSkills}
 						onChange={handlePendingSkillsChange}
-						placeholder="Search and select skills..."
-						searchPlaceholder="Type to search (e.g. Cooking, Excel)..."
-						label="Select Skills"
+						placeholder={t("profileWizard.skills.searchSkillsPlaceholder")}
+						searchPlaceholder={t("profileWizard.skills.typeToSearch")}
+						label={t("profileWizard.skills.selectSkills")}
 						maxDisplayChips={50} // Show chips inside
 					/>
 					<div className="flex justify-between items-start mt-2">
@@ -180,7 +181,7 @@ export default function SkillsSection({ skills, onAdd, onBulkAdd, onDelete, onUp
 							disabled={pendingSkills.length === 0 || saving}
 							className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
 						>
-							{saving ? "Saving..." : "Save Selection"}
+							{saving ? t("profileWizard.personal.saving") : t("profileWizard.skills.saveSelection")}
 						</button>
 					</div>
 				</div>
@@ -211,7 +212,7 @@ export default function SkillsSection({ skills, onAdd, onBulkAdd, onDelete, onUp
 								value={otherSkills}
 								onChange={e => setOtherSkills(e.target.value)}
 								onKeyDown={e => e.key === 'Enter' && handleAddOtherSkills()}
-								placeholder="Type skills separated by comma (e.g. Pottery, Karate)..."
+								placeholder={t("profileWizard.skills.otherSkillsPlaceholder")}
 								className="flex-1 px-3 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm"
 							/>
 							<button

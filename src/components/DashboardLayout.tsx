@@ -15,7 +15,6 @@ import {
 	Briefcase,
 	FileText,
 	Building2,
-	Settings,
 	LogOut,
 	Menu,
 	X,
@@ -25,38 +24,40 @@ import {
 	Bell,
 	Bookmark,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;
 }
 
-// Navigation items with Lucide icons
-const getNavItems = (userType: string) => {
+// Navigation items with Lucide icons — labels come from i18n in component
+const getNavItems = (userType: string, t: (key: string) => string) => {
 	if (userType === "individual") {
 		return [
-			{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-			{ href: "/profile", label: "Profile", icon: User },
-			{ href: "/jobs", label: "Browse Jobs", icon: Briefcase },
-			{ href: "/applications", label: "Applications", icon: FileText },
-
-			// { href: "/wallet", label: "Wallet", icon: Wallet },
-			{ href: "/saved-jobs", label: "Saved Jobs", icon: Bookmark },
+			{ href: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
+			{ href: "/profile", label: t("nav.profile"), icon: User },
+			{ href: "/jobs", label: t("nav.browseJobs"), icon: Briefcase },
+			{ href: "/applications", label: t("nav.applications"), icon: FileText },
+			{ href: "/saved-jobs", label: t("nav.savedJobs"), icon: Bookmark },
 		];
 	}
 	return [
-		{ href: "/employer/dashboard", label: "Dashboard", icon: LayoutDashboard },
-		{ href: "/employer/profile", label: "Company Profile", icon: Building2 },
-		{ href: "/jobs/manage", label: "My Jobs", icon: Briefcase },
-		{ href: "/employer/applicants", label: "Applicants", icon: FileText },
-		{ href: "/employer/billing", label: "Billing & Invoices", icon: Wallet },
+		{ href: "/employer/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
+		{ href: "/employer/profile", label: t("nav.companyProfile"), icon: Building2 },
+		{ href: "/jobs/manage", label: t("nav.myJobs"), icon: Briefcase },
+		{ href: "/employer/applicants", label: t("nav.applications"), icon: FileText },
+		{ href: "/employer/billing", label: t("nav.billingInvoices"), icon: Wallet },
 	];
 };
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	const router = useRouter();
+	const { t } = useTranslation();
 	const { user, isAuthenticated, isLoading, logout } = useAuthStore();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+	const navItems = getNavItems(user?.userType ?? "individual", t);
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
@@ -74,20 +75,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 			<div className="min-h-screen bg-slate-50 flex items-center justify-center">
 				<div className="flex flex-col items-center gap-3">
 					<div className="animate-spin rounded-full h-10 w-10 border-2 border-blue-600 border-t-transparent"></div>
-					<p className="text-sm text-slate-500">Loading...</p>
+					<p className="text-sm text-slate-500">{t("common.loading")}</p>
 				</div>
 			</div>
 		);
 	}
 
 	if (!isAuthenticated || !user) {
-		console.log("DashboardLayout: Not authenticated or no user", { isAuthenticated, user });
 		return null;
 	}
-
-	console.log("DashboardLayout: Rendering for user", user.id);
-
-	const navItems = getNavItems(user.userType);
 
 	return (
 		<div className="min-h-screen bg-slate-50">
@@ -123,7 +119,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 							</div>
 							<div className="flex-1 min-w-0">
 								<p className="text-sm font-medium text-slate-800 truncate">
-									{user.name || "User"}
+									{user.name || t("common.user")}
 								</p>
 								<p className="text-xs text-slate-500 truncate">
 									{user.email || user.phone}
@@ -167,20 +163,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 						className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all ${
 							sidebarCollapsed ? "justify-center" : ""
 						}`}
-						title={sidebarCollapsed ? "Verification" : undefined}
+						title={sidebarCollapsed ? t("common.verification") : undefined}
 					>
 						<Shield className="w-5 h-5 text-slate-400" />
-						{!sidebarCollapsed && <span>Verification</span>}
+						{!sidebarCollapsed && <span>{t("common.verification")}</span>}
 					</Link>
 					<button
 						onClick={() => logout()}
 						className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all ${
 							sidebarCollapsed ? "justify-center" : ""
 						}`}
-						title={sidebarCollapsed ? "Logout" : undefined}
+						title={sidebarCollapsed ? t("common.logout") : undefined}
 					>
 						<LogOut className="w-5 h-5" />
-						{!sidebarCollapsed && <span>Logout</span>}
+						{!sidebarCollapsed && <span>{t("common.logout")}</span>}
 					</button>
 				</div>
 
@@ -219,6 +215,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
 						{/* Right Section */}
 						<div className="flex items-center gap-3">
+							<LanguageSwitcher />
 							{/* Notifications */}
 							<button className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition relative">
 								<Bell className="w-5 h-5" />
@@ -264,7 +261,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 									</div>
 									<div className="flex-1 min-w-0">
 										<p className="font-medium text-slate-800 truncate">
-											{user.name || "User"}
+											{user.name || t("common.user")}
 										</p>
 										<p className="text-sm text-slate-500 truncate">
 											{user.email || user.phone}
@@ -303,14 +300,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 									className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-50"
 								>
 									<Shield className="w-5 h-5 text-slate-400" />
-									<span>Verification</span>
+									<span>{t("common.verification")}</span>
 								</Link>
 								<button
 									onClick={() => logout()}
 									className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50"
 								>
 									<LogOut className="w-5 h-5" />
-									<span>Logout</span>
+									<span>{t("common.logout")}</span>
 								</button>
 							</div>
 						</div>

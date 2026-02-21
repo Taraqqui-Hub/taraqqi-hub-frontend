@@ -6,6 +6,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import api from "@/lib/api";
@@ -71,6 +72,7 @@ interface Filters {
 
 export default function BrowseJobsPage() {
 	const router = useRouter();
+	const { t } = useTranslation();
 	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -98,8 +100,9 @@ export default function BrowseJobsPage() {
 
 	// Debounce search
 	const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+	const isInitialMount = useRef(true);
 
-	// Initial load
+	// Initial load only (single API call on mount)
 	useEffect(() => {
 		loadJobs();
 	// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,17 +116,17 @@ export default function BrowseJobsPage() {
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pagination.offset]);
 
-	// Debounced filter effect
+	// Debounced filter effect — skip initial mount to avoid double fetch (initial load handled above)
 	useEffect(() => {
+		if (isInitialMount.current) {
+			isInitialMount.current = false;
+			return;
+		}
 		if (searchTimeout.current) clearTimeout(searchTimeout.current);
-		
-		// Skip first render/initial load to avoid double fetching
-		// We handle direct changes elsewhere or rely on this
 		searchTimeout.current = setTimeout(() => {
 			setPagination(prev => ({ ...prev, offset: 0 }));
 			loadJobs(true);
 		}, 600);
-		
 		return () => {
 			if (searchTimeout.current) clearTimeout(searchTimeout.current);
 		};
@@ -260,8 +263,8 @@ export default function BrowseJobsPage() {
 	};
 
 	const formatSalary = (min: string | null, max: string | null, type: string | null, hide: boolean | null) => {
-		if (hide) return "Not disclosed";
-		if (!min && !max) return "Not specified";
+		if (hide) return t("common.notDisclosed");
+		if (!min && !max) return t("common.notSpecified");
 		const minVal = min ? parseInt(min) : null;
 		const maxVal = max ? parseInt(max) : null;
 		// Determine unit
@@ -269,12 +272,11 @@ export default function BrowseJobsPage() {
 		const currency = "₹"; 
 
 		if (minVal && maxVal) {
-			// Compact display: ₹3L - ₹5L or ₹20k - ₹30k
 			return `${currency}${compactNumber(minVal)} - ${currency}${compactNumber(maxVal)}${unit}`;
 		}
 		if (minVal) return `${currency}${compactNumber(minVal)}+${unit}`;
-		if (maxVal) return `Up to ${currency}${compactNumber(maxVal)}${unit}`;
-		return "Not specified";
+		if (maxVal) return `${t("common.upTo")} ${currency}${compactNumber(maxVal)}${unit}`;
+		return t("common.notSpecified");
 	};
 
 	// Helper to make large numbers compact (e.g. 500000 -> 5L, 20000 -> 20k)
@@ -285,26 +287,25 @@ export default function BrowseJobsPage() {
 	};
 
 	const formatExperience = (min: number | null, max: number | null) => {
-		if (min === 0 && (max === 0 || max === null)) return "Fresher";
-		if (min === null && max === null) return "Exp. N/A";
-		if (min !== null && max !== null) return `${min}-${max} Yrs`;
-		if (min !== null) return `${min}+ Yrs`;
-		return `Up to ${max} Yrs`;
+		if (min === 0 && (max === 0 || max === null)) return t("common.fresher");
+		if (min === null && max === null) return t("common.expN/A");
+		if (min !== null && max !== null) return `${min}-${max} ${t("common.yrs")}`;
+		if (min !== null) return `${min}+ ${t("common.yrs")}`;
+		return `${t("common.upTo")} ${max} ${t("common.yrs")}`;
 	};
 
-	// Mock stats for sidebar (would come from API in real world)
 	const jobTypes = [
-		{ id: "full-time", label: "Full Time" },
-		{ id: "part-time", label: "Part Time" },
-		{ id: "contract", label: "Contract" },
-		{ id: "internship", label: "Internship" },
-		{ id: "freelance", label: "Freelance" },
+		{ id: "full-time", label: t("jobs.fullTime") },
+		{ id: "part-time", label: t("jobs.partTime") },
+		{ id: "contract", label: t("jobs.contract") },
+		{ id: "internship", label: t("jobs.internship") },
+		{ id: "freelance", label: t("jobs.freelance") },
 	];
 
 	const locationTypes = [
-		{ id: "onsite", label: "Onsite" },
-		{ id: "remote", label: "Remote" },
-		{ id: "hybrid", label: "Hybrid" },
+		{ id: "onsite", label: t("jobs.onsite") },
+		{ id: "remote", label: t("jobs.remote") },
+		{ id: "hybrid", label: t("jobs.hybrid") },
 	];
 
 	return (
@@ -312,15 +313,15 @@ export default function BrowseJobsPage() {
 			<DashboardLayout>
 				{/* Modern Header Section */}
 				<div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-					<h1 className="text-2xl font-bold text-slate-900 mb-1">Find your dream job</h1>
-					<p className="text-slate-500 text-sm mb-6">Browse through thousands of opportunities tailor-made for you</p>
+					<h1 className="text-2xl font-bold text-slate-900 mb-1">{t("jobs.findDreamJob")}</h1>
+					<p className="text-slate-500 text-sm mb-6">{t("jobs.browseSubtitle")}</p>
 					
 					<div className="flex flex-col md:flex-row gap-3">
 						<div className="flex-1 relative group">
 							<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors h-5 w-5" />
 							<input
 								type="text"
-								placeholder="Job title, skills, or company"
+								placeholder={t("jobs.searchPlaceholder")}
 								value={filters.search}
 								onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
 								className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
@@ -330,7 +331,7 @@ export default function BrowseJobsPage() {
 							<MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors h-5 w-5" />
 							<input
 								type="text"
-								placeholder="City, state, or zip code"
+								placeholder={t("jobs.locationPlaceholder")}
 								value={filters.city}
 								onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value }))}
 								className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
@@ -340,7 +341,7 @@ export default function BrowseJobsPage() {
 							onClick={() => loadJobs(true)}
 							className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-8 py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
 						>
-							Search Jobs
+							{t("jobs.searchJobs")}
 						</button>
 					</div>
 				</div>
@@ -351,8 +352,8 @@ export default function BrowseJobsPage() {
 						onClick={() => setShowMobileFilters(!showMobileFilters)}
 						className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-700"
 					>
-						<span className="flex items-center gap-2"><Filter size={18} /> Filters</span>
-						<span className="text-sm bg-slate-100 px-2 py-1 rounded-md">{Object.values(filters).flat().filter(Boolean).length} Active</span>
+						<span className="flex items-center gap-2"><Filter size={18} /> {t("jobs.filters")}</span>
+						<span className="text-sm bg-slate-100 px-2 py-1 rounded-md">{Object.values(filters).flat().filter(Boolean).length} {t("common.active")}</span>
 					</button>
 
 					{/* Sidebar Filters (Desktop & Mobile Drawer) */}
@@ -362,7 +363,7 @@ export default function BrowseJobsPage() {
 					`}>
 						{showMobileFilters && (
 							<div className="flex items-center justify-between mb-4 lg:hidden">
-								<h2 className="text-xl font-bold">Filters</h2>
+								<h2 className="text-xl font-bold">{t("jobs.filters")}</h2>
 								<button onClick={() => setShowMobileFilters(false)} className="p-2 bg-slate-100 rounded-full"><X size={20} /></button>
 							</div>
 						)}
@@ -370,16 +371,16 @@ export default function BrowseJobsPage() {
 						<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-6 lg:sticky lg:top-24">
 							<div className="flex items-center justify-between">
 								<h3 className="font-semibold text-slate-900 flex items-center gap-2">
-									<Filter size={18} className="text-indigo-600" /> Filters
+									<Filter size={18} className="text-indigo-600" /> {t("jobs.filters")}
 								</h3>
 								<button onClick={clearFilters} className="text-xs font-medium text-slate-500 hover:text-indigo-600">
-									Clear All
+									{t("common.clearAll")}
 								</button>
 							</div>
 
 							{/* Job Type */}
 							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">Job Type</h4>
+								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.jobType")}</h4>
 								<div className="space-y-2">
 									{jobTypes.map(type => (
 										<label key={type.id} className="flex items-center gap-3 cursor-pointer group">
@@ -405,7 +406,7 @@ export default function BrowseJobsPage() {
 
 							{/* Work Mode */}
 							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">Work Mode</h4>
+								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.workMode")}</h4>
 								<div className="space-y-2">
 									{locationTypes.map(type => (
 										<label key={type.id} className="flex items-center gap-3 cursor-pointer group">
@@ -431,11 +432,11 @@ export default function BrowseJobsPage() {
 
 							{/* Experience */}
 							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">Experience (Years)</h4>
+								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.experienceYears")}</h4>
 								<div className="flex gap-2">
 									<input
 										type="number"
-										placeholder="Min"
+										placeholder={t("common.min")}
 										value={filters.minExperience}
 										onChange={(e) => setFilters(prev => ({ ...prev, minExperience: e.target.value }))}
 										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
@@ -443,7 +444,7 @@ export default function BrowseJobsPage() {
 									<span className="text-slate-400 self-center">-</span>
 									<input
 										type="number"
-										placeholder="Max"
+										placeholder={t("common.max")}
 										value={filters.maxExperience}
 										onChange={(e) => setFilters(prev => ({ ...prev, maxExperience: e.target.value }))}
 										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
@@ -455,18 +456,18 @@ export default function BrowseJobsPage() {
 
 							{/* Salary */}
 							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">Salary Range (₹)</h4>
+								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.salaryRange")}</h4>
 								<div className="flex flex-col gap-2">
 									<input
 										type="number"
-										placeholder="Min Annual Salary"
+										placeholder={t("jobs.minAnnualSalary")}
 										value={filters.minSalary}
 										onChange={(e) => setFilters(prev => ({ ...prev, minSalary: e.target.value }))}
 										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
 									/>
 									<input
 										type="number"
-										placeholder="Max Annual Salary"
+										placeholder={t("jobs.maxAnnualSalary")}
 										value={filters.maxSalary}
 										onChange={(e) => setFilters(prev => ({ ...prev, maxSalary: e.target.value }))}
 										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
@@ -483,9 +484,9 @@ export default function BrowseJobsPage() {
 							<div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
 								<MapPin className="text-indigo-600 mt-0.5 shrink-0" size={20} />
 								<div>
-									<h4 className="font-semibold text-indigo-900">Expanding your search</h4>
+									<h4 className="font-semibold text-indigo-900">{t("jobs.expandingSearch")}</h4>
 									<p className="text-sm text-indigo-700 mt-1">
-										We couldn't find exact matches for <strong>{filters.city}</strong>, so we're showing you jobs from nearby and other locations.
+										{t("jobs.expandingSearchMessage", { city: filters.city })}
 									</p>
 								</div>
 								<button 
@@ -504,16 +505,16 @@ export default function BrowseJobsPage() {
 						{/* Results Info */}
 						<div className="flex items-center justify-between pb-2">
 							<h2 className="text-slate-700 font-medium">
-								{loading ? "Searching..." : (
-									<>Found <span className="font-bold text-slate-900">{pagination.total}</span> jobs</>
+								{loading ? t("jobs.searching") : (
+									<>{t("jobs.foundJobs", { count: pagination.total })}</>
 								)}
 							</h2>
 							<div className="flex items-center gap-2 text-sm text-slate-500">
-								<span>Sort by:</span>
+								<span>{t("common.sortBy")}</span>
 								<select className="bg-transparent border-none font-medium text-slate-900 focus:ring-0 cursor-pointer py-0 pl-1">
-									<option>Relevance</option>
-									<option>Date Posted</option>
-									<option>Salary: High to Low</option>
+									<option>{t("common.relevance")}</option>
+									<option>{t("common.datePosted")}</option>
+									<option>{t("common.salaryHighToLow")}</option>
 								</select>
 							</div>
 						</div>
@@ -542,7 +543,7 @@ export default function BrowseJobsPage() {
 										{/* Highlight Badge */}
 										{job.isUrgentHighlight && (
 											<div className="absolute top-0 right-0 bg-red-50 text-red-600 text-xs font-bold px-3 py-1 rounded-bl-xl border-l border-b border-red-100 rounded-tr-2xl flex items-center gap-1">
-												<Zap size={10} /> URGENT
+												<Zap size={10} /> {t("common.urgent")}
 											</div>
 										)}
 										
@@ -561,7 +562,7 @@ export default function BrowseJobsPage() {
 																{job.title}
 															</h3>
 														</Link>
-														<p className="text-sm font-medium text-slate-600 mb-2">{job.category || "Technology Company"}</p>
+														<p className="text-sm font-medium text-slate-600 mb-2">{job.category || t("common.technologyCompany")}</p>
 													</div>
 													{/* Actions */}
 													<button 
@@ -617,21 +618,21 @@ export default function BrowseJobsPage() {
 													<div className="flex items-center gap-2">
 														{job.hasApplied && (
 															<span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-50 px-2 py-1 rounded-md">
-																<Check size={10} /> Applied
+																<Check size={10} /> {t("common.applied")}
 															</span>
 														)}
 														{job.badges.includes("Featured") && (
 															<span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-																<Star size={10} /> Featured
+																<Star size={10} /> {t("common.featured")}
 															</span>
 														)}
 														<span className="text-xs text-slate-400">
-															{job.applicationsCount || 0} applicants
+															{job.applicationsCount || 0} {t("common.applicants")}
 														</span>
 													</div>
 													
 													<Link href={`/jobs/${job.uuid}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group/link">
-														View Details <ArrowRight size={16} className="transition-transform group-hover/link:translate-x-1" />
+														{t("common.viewDetails")} <ArrowRight size={16} className="transition-transform group-hover/link:translate-x-1" />
 													</Link>
 												</div>
 											</div>
@@ -648,7 +649,7 @@ export default function BrowseJobsPage() {
 										disabled={loading}
 										className="w-full py-4 text-center text-indigo-600 font-medium hover:bg-indigo-50 rounded-xl transition-colors border border-dashed border-indigo-200 mt-4"
 									>
-										{loading ? "Loading..." : "Load More Jobs"}
+										{loading ? t("common.loading") : t("jobs.loadMore")}
 									</button>
 								)}
 							</div>
@@ -657,15 +658,15 @@ export default function BrowseJobsPage() {
 								<div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
 									<Search className="w-10 h-10 text-slate-300" />
 								</div>
-								<h3 className="text-xl font-bold text-slate-900 mb-2">No jobs found</h3>
+								<h3 className="text-xl font-bold text-slate-900 mb-2">{t("jobs.noJobsFound")}</h3>
 								<p className="text-slate-500 mb-8 max-w-md mx-auto">
-									We couldn't find any jobs matching your criteria. Try widening your search or clearing some filters.
+									{t("jobs.noJobsMessage")}
 								</p>
 								<button
 									onClick={clearFilters}
 									className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-shadow shadow-md hover:shadow-lg"
 								>
-									Clear All Filters
+									{t("jobs.clearAllFilters")}
 								</button>
 							</div>
 						)}

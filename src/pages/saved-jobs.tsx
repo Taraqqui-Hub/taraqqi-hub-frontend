@@ -1,5 +1,6 @@
 import { useEffect, useState, MouseEvent } from "react";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import api from "@/lib/api";
@@ -46,6 +47,7 @@ interface Job {
 }
 
 export default function SavedJobsPage() {
+	const { t } = useTranslation();
 	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -80,20 +82,20 @@ export default function SavedJobsPage() {
 		e.preventDefault(); // Prevent navigation if clicking card
 		e.stopPropagation();
 		
-		if (!confirm("Are you sure you want to remove this job from saved list?")) return;
+		if (!confirm(t("savedJobs.removeConfirm"))) return;
 
 		try {
 			await api.delete(`/saved-jobs/${jobId}`);
 			setJobs(prev => prev.filter(job => job.id !== jobId && job.uuid !== jobId));
 		} catch (err) {
 			console.error("Failed to remove saved job", err);
-			alert("Failed to remove job");
+			alert(t("savedJobs.failedToRemove"));
 		}
 	};
 
 	const formatSalary = (min: string | null, max: string | null, type: string | null, hide: boolean | null) => {
-		if (hide) return "Not disclosed";
-		if (!min && !max) return "Not specified";
+		if (hide) return t("common.notDisclosed");
+		if (!min && !max) return t("common.notSpecified");
 		const minVal = min ? parseInt(min) : null;
 		const maxVal = max ? parseInt(max) : null;
 		const unit = type === "monthly" ? "/mo" : type === "yearly" ? " LPA" : "";
@@ -103,8 +105,8 @@ export default function SavedJobsPage() {
 			return `${currency}${compactNumber(minVal)} - ${currency}${compactNumber(maxVal)}${unit}`;
 		}
 		if (minVal) return `${currency}${compactNumber(minVal)}+${unit}`;
-		if (maxVal) return `Up to ${currency}${compactNumber(maxVal)}${unit}`;
-		return "Not specified";
+		if (maxVal) return `${t("common.upTo")} ${currency}${compactNumber(maxVal)}${unit}`;
+		return t("common.notSpecified");
 	};
 
 	const compactNumber = (num: number) => {
@@ -114,11 +116,11 @@ export default function SavedJobsPage() {
 	};
 
 	const formatExperience = (min: number | null, max: number | null) => {
-		if (min === 0 && (max === 0 || max === null)) return "Fresher";
-		if (min === null && max === null) return "Exp. N/A";
-		if (min !== null && max !== null) return `${min}-${max} Yrs`;
-		if (min !== null) return `${min}+ Yrs`;
-		return `Up to ${max} Yrs`;
+		if (min === 0 && (max === 0 || max === null)) return t("common.fresher");
+		if (min === null && max === null) return t("common.expN/A");
+		if (min !== null && max !== null) return `${min}-${max} ${t("common.yrs")}`;
+		if (min !== null) return `${min}+ ${t("common.yrs")}`;
+		return `${t("common.upTo")} ${max} ${t("common.yrs")}`;
 	};
 
 	return (
@@ -127,10 +129,8 @@ export default function SavedJobsPage() {
 				<div className="max-w-5xl mx-auto">
 					<div className="flex items-center justify-between mb-6">
 						<div>
-							<h1 className="text-2xl font-bold text-slate-900">Saved Jobs</h1>
-							<p className="text-slate-500 text-sm mt-1">
-								You have saved {jobs.length} job{jobs.length !== 1 ? 's' : ''}
-							</p>
+							<h1 className="text-2xl font-bold text-slate-900">{t("savedJobs.savedJobsTitle")}</h1>
+							<p className="text-slate-500 text-sm mt-1">{t("savedJobs.savedJobsDesc")}</p>
 						</div>
 					</div>
 
@@ -181,7 +181,7 @@ export default function SavedJobsPage() {
 															{job.title}
 														</h3>
 													</Link>
-													<p className="text-sm font-medium text-slate-600 mb-2">{job.category || "Technology Company"}</p>
+													<p className="text-sm font-medium text-slate-600 mb-2">{job.category || t("common.technologyCompany")}</p>
 												</div>
 												{/* Remove Action */}
 												<button 
@@ -220,14 +220,14 @@ export default function SavedJobsPage() {
 												<div className="flex items-center gap-2">
 													{job.hasApplied && (
 														<span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-50 px-2 py-1 rounded-md">
-															Applied
+															{t("common.applied")}
 														</span>
 													)}
 												</div>
 												
 												{isActive && (
 													<Link href={`/jobs/${job.uuid}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group/link">
-														View Details <ArrowRight size={16} className="transition-transform group-hover/link:translate-x-1" />
+														{t("common.viewDetails")} <ArrowRight size={16} className="transition-transform group-hover/link:translate-x-1" />
 													</Link>
 												)}
 												{!isActive && (
@@ -247,15 +247,13 @@ export default function SavedJobsPage() {
 							<div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
 								<Bookmark className="w-10 h-10 text-slate-300" />
 							</div>
-							<h3 className="text-xl font-bold text-slate-900 mb-2">No saved jobs</h3>
-							<p className="text-slate-500 mb-8 max-w-md mx-auto">
-								You haven't saved any jobs yet. Browse jobs and save them to view them later.
-							</p>
+							<h3 className="text-xl font-bold text-slate-900 mb-2">{t("savedJobs.noSavedJobs")}</h3>
+							<p className="text-slate-500 mb-8 max-w-md mx-auto">{t("savedJobs.noSavedJobsDesc")}</p>
 							<Link
 								href="/jobs"
 								className="inline-flex px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-shadow shadow-md hover:shadow-lg"
 							>
-								Browse Jobs
+								{t("nav.browseJobs")}
 							</Link>
 						</div>
 					)}

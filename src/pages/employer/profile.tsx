@@ -3,12 +3,14 @@
  */
 
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Link from "next/link";
 import api from "@/lib/api";
 
 export default function EmployerProfilePage() {
+	const { t } = useTranslation();
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export default function EmployerProfilePage() {
 			});
 		} catch (err: any) {
 			if (err.response?.status !== 404) {
-				setError("Failed to load profile");
+				setError(t("companyProfile.failedToLoadProfile"));
 			}
 		} finally {
 			setLoading(false);
@@ -94,9 +96,9 @@ export default function EmployerProfilePage() {
 				setHasProfile(true);
 			}
 
-			setSuccess("Profile saved successfully!");
+			setSuccess(t("companyProfile.profileSavedSuccess"));
 		} catch (err: any) {
-			setError(err.response?.data?.error || "Failed to save profile");
+			setError(err.response?.data?.error || t("companyProfile.failedToSaveProfile"));
 		} finally {
 			setSaving(false);
 		}
@@ -115,7 +117,7 @@ export default function EmployerProfilePage() {
 		<ProtectedRoute allowedUserTypes={["employer"]}>
 			<DashboardLayout>
 				<div className="max-w-3xl mx-auto">
-					<h1 className="text-2xl font-bold text-[#0F172A] mb-6">Company Profile</h1>
+					<h1 className="text-2xl font-bold text-[#0F172A] mb-6">{t("companyProfile.title")}</h1>
 
 					{loading ? (
 						<div className="text-center py-12">
@@ -132,12 +134,12 @@ export default function EmployerProfilePage() {
 
 							{/* Company Info */}
 							<div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-								<h2 className="text-lg font-semibold mb-4">Company Information</h2>
+								<h2 className="text-lg font-semibold mb-4">{t("companyProfile.companyInfo")}</h2>
 
 								<div className="grid gap-4 md:grid-cols-2">
 									<div className="md:col-span-2">
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Company Name *
+											{t("companyProfile.companyName")}
 										</label>
 										<input
 											type="text"
@@ -150,7 +152,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Company Type
+											{t("companyProfile.companyType")}
 										</label>
 										<select
 											name="companyType"
@@ -158,16 +160,16 @@ export default function EmployerProfilePage() {
 											onChange={handleChange}
 											className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#2563EB]"
 										>
-											<option value="">Select</option>
-											<option value="startup">Startup</option>
-											<option value="sme">SME</option>
-											<option value="enterprise">Enterprise</option>
-											<option value="agency">Agency</option>
+											<option value="">{t("companyProfile.select")}</option>
+											<option value="startup">{t("companyProfile.startup")}</option>
+											<option value="sme">{t("companyProfile.sme")}</option>
+											<option value="enterprise">{t("companyProfile.enterprise")}</option>
+											<option value="agency">{t("companyProfile.agency")}</option>
 										</select>
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Industry
+											{t("companyProfile.industry")}
 										</label>
 										<input
 											type="text"
@@ -179,7 +181,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Company Size
+											{t("companyProfile.companySize")}
 										</label>
 										<select
 											name="companySize"
@@ -187,17 +189,17 @@ export default function EmployerProfilePage() {
 											onChange={handleChange}
 											className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#2563EB]"
 										>
-											<option value="">Select</option>
-											<option value="1-10">1-10 employees</option>
-											<option value="11-50">11-50 employees</option>
-											<option value="51-200">51-200 employees</option>
-											<option value="201-500">201-500 employees</option>
-											<option value="500+">500+ employees</option>
+											<option value="">{t("companyProfile.select")}</option>
+											<option value="1-10">{t("companyProfile.employees1_10")}</option>
+											<option value="11-50">{t("companyProfile.employees11_50")}</option>
+											<option value="51-200">{t("companyProfile.employees51_200")}</option>
+											<option value="201-500">{t("companyProfile.employees201_500")}</option>
+											<option value="500+">{t("companyProfile.employees500Plus")}</option>
 										</select>
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Founded Year
+											{t("companyProfile.foundedYear")}
 										</label>
 										<input
 											type="number"
@@ -211,7 +213,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div className="md:col-span-2">
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Website
+											{t("companyProfile.website")}
 										</label>
 										<input
 											type="url"
@@ -227,12 +229,12 @@ export default function EmployerProfilePage() {
 
 							{/* Contact & Location */}
 							<div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-								<h2 className="text-lg font-semibold mb-4">Contact & Location</h2>
+								<h2 className="text-lg font-semibold mb-4">{t("companyProfile.contactLocation")}</h2>
 
 								<div className="grid gap-4 md:grid-cols-2">
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Contact Person
+											{t("companyProfile.contactPerson")}
 										</label>
 										<input
 											type="text"
@@ -244,7 +246,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Contact Email
+											{t("companyProfile.contactEmail")}
 										</label>
 										<input
 											type="email"
@@ -256,7 +258,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											City
+											{t("companyProfile.city")}
 										</label>
 										<input
 											type="text"
@@ -268,7 +270,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											State
+											{t("companyProfile.state")}
 										</label>
 										<input
 											type="text"
@@ -283,12 +285,12 @@ export default function EmployerProfilePage() {
 
 							{/* About */}
 							<div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-								<h2 className="text-lg font-semibold mb-4">About</h2>
+								<h2 className="text-lg font-semibold mb-4">{t("companyProfile.about")}</h2>
 
 								<div className="space-y-4">
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Company Description
+											{t("companyProfile.companyDescription")}
 										</label>
 										<textarea
 											name="description"
@@ -300,14 +302,14 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											Benefits (comma separated)
+											{t("companyProfile.benefitsCommaSeparated")}
 										</label>
 										<input
 											type="text"
 											name="benefits"
 											value={formData.benefits}
 											onChange={handleChange}
-											placeholder="Health insurance, Flexible hours, WFH"
+											placeholder={t("companyProfile.benefitsPlaceholder")}
 											className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#2563EB]"
 										/>
 									</div>
@@ -316,15 +318,15 @@ export default function EmployerProfilePage() {
 
 							{/* Business Verification */}
 							<div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
-								<h2 className="text-lg font-semibold mb-4">Business Details</h2>
+								<h2 className="text-lg font-semibold mb-4">{t("companyProfile.businessDetails")}</h2>
 								<p className="text-sm text-slate-500 mb-4">
-									For verification purposes only. Will not be displayed publicly.
+									{t("companyProfile.businessDetailsHint")}
 								</p>
 
 								<div className="grid gap-4 md:grid-cols-2">
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											GSTIN
+											{t("companyProfile.gstin")}
 										</label>
 										<input
 											type="text"
@@ -336,7 +338,7 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
-											PAN
+											{t("companyProfile.pan")}
 										</label>
 										<input
 											type="text"
@@ -355,13 +357,13 @@ export default function EmployerProfilePage() {
 									disabled={saving}
 									className="flex-1 py-3 bg-[#2563EB] text-white font-semibold rounded-lg hover:bg-[#1E40AF] disabled:opacity-50"
 								>
-									{saving ? "Saving..." : "Save Profile"}
+									{saving ? t("companyProfile.saving") : t("companyProfile.saveProfile")}
 								</button>
 								<Link
 									href="/kyc"
 									className="px-6 py-3 bg-white border border-[#E2E8F0] text-[#0F172A] font-semibold rounded-lg hover:border-[#2563EB] hover:text-[#2563EB] flex items-center justify-center transition"
 								>
-									Proceed to KYC →
+									{t("companyProfile.proceedToKyc")}
 								</Link>
 							</div>
 						</form>

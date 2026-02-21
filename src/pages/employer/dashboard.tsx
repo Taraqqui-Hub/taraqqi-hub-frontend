@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuthStore } from "@/store/authStore";
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 export default function EmployerDashboard() {
+    const { t } = useTranslation();
     const { user } = useAuthStore();
     const [stats, setStats] = useState({
         activeJobs: 0,
@@ -55,18 +57,16 @@ export default function EmployerDashboard() {
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">
-                                Hello, {user?.name}! 👋
+                                {t("employer.hello")}, {user?.name}! 👋
                             </h1>
-                            <p className="text-gray-500 mt-1">
-                                Here's what's happening with your hiring pipeline.
-                            </p>
+                            <p className="text-gray-500 mt-1">{t("employer.heresWhatsHappening")}</p>
                         </div>
                         <Link 
                             href="/jobs/new"
                             className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-lg shadow-blue-200"
                         >
                             <PlusCircle size={20} />
-                            Post New Job
+                            {t("employer.postNewJob")}
                         </Link>
                     </div>
 
@@ -75,7 +75,7 @@ export default function EmployerDashboard() {
                         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Active Jobs</p>
+                                    <p className="text-sm font-medium text-gray-500">{t("employer.activeJobs")}</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-2">{loading ? "…" : stats.activeJobs}</p>
                                 </div>
                                 <div className="p-4 rounded-full bg-blue-100">
@@ -86,7 +86,7 @@ export default function EmployerDashboard() {
                         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Total Applications</p>
+                                    <p className="text-sm font-medium text-gray-500">{t("employer.totalApplications")}</p>
                                     <p className="text-3xl font-bold text-gray-900 mt-2">{loading ? "…" : stats.totalApplications}</p>
                                 </div>
                                 <div className="p-4 rounded-full bg-purple-100">
@@ -97,8 +97,8 @@ export default function EmployerDashboard() {
                         <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-500">Post a job</p>
-                                    <p className="text-lg font-bold text-gray-900 mt-2">Boost reach</p>
+                                    <p className="text-sm font-medium text-gray-500">{t("employer.postAJob")}</p>
+                                    <p className="text-lg font-bold text-gray-900 mt-2">{t("employer.boostReach")}</p>
                                 </div>
                                 <Link href="/jobs/new" className="p-4 rounded-full bg-green-100 hover:bg-green-200 transition">
                                     <PlusCircle className="w-6 h-6 text-green-600" />
@@ -114,17 +114,17 @@ export default function EmployerDashboard() {
                              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <Users size={20} className="text-blue-600" />
-                                    Recent Applicants
+                                    {t("employer.recentApplicants")}
                                 </h3>
                                 <Link href="/jobs/manage" className="text-sm text-blue-600 font-medium hover:underline">
-                                    My Jobs
+                                    {t("nav.myJobs")}
                                 </Link>
                             </div>
                             <div className="divide-y divide-gray-50 min-h-[120px]">
                                 {loading ? (
-                                    <div className="p-6 text-center text-gray-500 text-sm">Loading…</div>
+                                    <div className="p-6 text-center text-gray-500 text-sm">{t("common.loading")}</div>
                                 ) : stats.recentJobs.length === 0 ? (
-                                    <div className="p-6 text-center text-gray-500 text-sm">No jobs yet. Post your first job.</div>
+                                    <div className="p-6 text-center text-gray-500 text-sm">{t("employer.noJobsDesc")}</div>
                                 ) : (
                                     stats.recentJobs.map((job) => (
                                         <Link
@@ -134,7 +134,7 @@ export default function EmployerDashboard() {
                                         >
                                             <div>
                                                 <p className="font-medium text-gray-900">{job.title}</p>
-                                                <p className="text-xs text-gray-500">{job.applicationsCount} applicants</p>
+                                                <p className="text-xs text-gray-500">{job.applicationsCount} {t("common.applicants")}</p>
                                             </div>
                                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${job.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
                                                 {job.status}
@@ -150,17 +150,17 @@ export default function EmployerDashboard() {
                             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <Briefcase size={20} className="text-purple-600" />
-                                    My Jobs
+                                    {t("nav.myJobs")}
                                 </h3>
                                 <Link href="/jobs/manage" className="text-sm text-blue-600 font-medium hover:underline">
-                                    Manage
+                                    {t("employer.manage")}
                                 </Link>
                             </div>
                             <div className="p-4 space-y-4">
                                 {loading ? (
-                                    <p className="text-sm text-gray-500">Loading…</p>
+                                    <p className="text-sm text-gray-500">{t("common.loading")}</p>
                                 ) : stats.recentJobs.length === 0 ? (
-                                    <p className="text-sm text-gray-500">No jobs yet.</p>
+                                    <p className="text-sm text-gray-500">{t("employer.noJobsYet")}</p>
                                 ) : (
                                     stats.recentJobs.map((job) => (
                                         <Link
@@ -175,13 +175,13 @@ export default function EmployerDashboard() {
                                                 </span>
                                             </div>
                                             <div className="mt-2 text-xs text-gray-500">
-                                                {job.applicationsCount} applicants
+                                                {job.applicationsCount} {t("common.applicants")}
                                             </div>
                                         </Link>
                                     ))
                                 )}
                                 <Link href="/jobs/new" className="block text-center text-sm text-blue-600 font-medium mt-4 hover:underline">
-                                    Post New Job
+                                    {t("employer.postNewJob")}
                                 </Link>
                             </div>
                         </div>

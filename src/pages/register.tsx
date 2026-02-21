@@ -6,13 +6,16 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
 import { authApi } from "@/lib/api";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 type UserType = "individual" | "employer";
 
 export default function RegisterPage() {
 	const router = useRouter();
+	const { t } = useTranslation();
 	const { signup, isLoading, error, clearError, isAuthenticated, user } = useAuthStore();
 
 	// Form state
@@ -69,11 +72,11 @@ export default function RegisterPage() {
 		try {
 			await authApi.resendVerification(email);
 			setResendStatus("success");
-			setResendMessage("Verification link sent!");
+			setResendMessage(t("register.verificationLinkSent"));
 			setTimeout(() => setResendStatus("idle"), 5000);
 		} catch (err: any) {
 			setResendStatus("error");
-			setResendMessage(err.response?.data?.error || "Failed to resend link");
+			setResendMessage(err.response?.data?.error || t("register.failedToResend"));
 			setTimeout(() => {
 				setResendStatus("idle");
 				setResendMessage("");
@@ -84,7 +87,8 @@ export default function RegisterPage() {
 	// Success screen
 	if (success) {
 		return (
-			<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
+			<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8 relative">
+				<div className="absolute top-4 right-4"><LanguageSwitcher /></div>
 				<div className="w-full max-w-md">
 					<div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-[#E2E8F0] text-center">
 						<div className="w-14 h-14 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -92,31 +96,30 @@ export default function RegisterPage() {
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
 							</svg>
 						</div>
-						<h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] mb-4">Check Your Email</h2>
+						<h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] mb-4">{t("register.checkYourEmail")}</h2>
 						<p className="text-[#475569] mb-6 text-sm sm:text-base">
-							We&apos;ve sent a verification link to <span className="text-[#2563EB] font-medium break-all">{email}</span>.
-							Please check your inbox and click the link to verify your email.
+							{t("register.verificationSent")} <span className="text-[#2563EB] font-medium break-all">{email}</span>. {t("register.checkInbox")}
 						</p>
 						{userType === "employer" && (
 							<p className="text-[#64748B] text-sm mb-4">
-								After verifying, log in and you&apos;ll be asked to pay the one-time onboarding fee, then complete your company profile and business verification.
+								{t("register.afterVerifyEmployer")}
 							</p>
 						)}
 						<Link
 							href="/login"
 							className="inline-block py-3 px-6 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md transition"
 						>
-							Go to Login
+							{t("register.goToLogin")}
 						</Link>
 
 						<div className="mt-6 border-t pt-4">
-							<p className="text-sm text-gray-500 mb-2">Didn&apos;t receive the email?</p>
+							<p className="text-sm text-gray-500 mb-2">{t("register.didntReceiveEmail")}</p>
 							<button
 								onClick={handleResendLink}
 								disabled={resendStatus === "loading" || resendStatus === "success"}
 								className="text-[#2563EB] hover:text-[#1E40AF] font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
 							>
-								{resendStatus === "loading" ? "Sending..." : resendStatus === "success" ? "Sent!" : "Resend Verification Link"}
+								{resendStatus === "loading" ? t("register.sending") : resendStatus === "success" ? t("register.sent") : t("register.resendVerificationLink")}
 							</button>
 							{resendMessage && (
 								<p className={`text-xs mt-2 ${resendStatus === "error" ? "text-red-600" : "text-green-600"}`}>
@@ -132,16 +135,15 @@ export default function RegisterPage() {
 
 	// Registration form
 	return (
-		<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
+		<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8 relative">
+			<div className="absolute top-4 right-4"><LanguageSwitcher /></div>
 			<div className="w-full max-w-md">
 				<div className="text-center mb-8">
 					<h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] mb-2">
-						{userType === "employer" ? "Create Employer Account" : "Join Taraqqi Hub"}
+						{userType === "employer" ? t("register.createEmployerAccount") : t("register.joinTaraqqiHub")}
 					</h1>
 					<p className="text-[#475569]">
-						{userType === "employer" 
-							? "Start hiring the best talent for your team." 
-							: "Create your profile to access jobs, skills, and community."}
+						{userType === "employer" ? t("register.startHiring") : t("register.createProfileAccess")}
 					</p>
 				</div>
 
@@ -155,14 +157,14 @@ export default function RegisterPage() {
 					<form onSubmit={handleSubmit}>
 						<div className="mb-4">
 							<label htmlFor="name" className="block text-sm font-medium text-[#0F172A] mb-2">
-								{userType === "employer" ? "Contact Person Name" : "Full Name"}
+								{userType === "employer" ? t("register.contactPersonName") : t("register.fullName")}
 							</label>
 							<input
 								type="text"
 								id="name"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
-								placeholder={userType === "employer" ? "Your name" : "Your full name"}
+								placeholder={userType === "employer" ? t("register.yourName") : t("register.yourFullName")}
 								className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base"
 								required
 								minLength={2}
@@ -171,14 +173,14 @@ export default function RegisterPage() {
 
 						<div className="mb-4">
 							<label htmlFor="email" className="block text-sm font-medium text-[#0F172A] mb-2">
-								Email Address
+								{t("auth.emailAddress")}
 							</label>
 							<input
 								type="email"
 								id="email"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
-								placeholder="you@example.com"
+								placeholder={t("auth.placeholders.email")}
 								className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base"
 								required
 							/>
@@ -186,7 +188,7 @@ export default function RegisterPage() {
 
 						<div className="mb-4">
 							<label htmlFor="password" className="block text-sm font-medium text-[#0F172A] mb-2">
-								Password
+								{t("auth.password")}
 							</label>
 							<div className="relative">
 								<input
@@ -194,7 +196,7 @@ export default function RegisterPage() {
 									id="password"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									placeholder="Min. 8 characters"
+									placeholder={t("register.minChars")}
 									className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition pr-12 text-base"
 									required
 									minLength={8}
@@ -217,20 +219,20 @@ export default function RegisterPage() {
 								</button>
 							</div>
 							<p className="text-xs text-[#64748B] mt-1">
-								Must include uppercase, lowercase, number, and special character
+								{t("register.passwordHint")}
 							</p>
 						</div>
 
 						<div className="mb-6">
 							<label htmlFor="confirmPassword" className="block text-sm font-medium text-[#0F172A] mb-2">
-								Confirm Password
+								{t("register.confirmPassword")}
 							</label>
 							<input
 								type="password"
 								id="confirmPassword"
 								value={confirmPassword}
 								onChange={(e) => setConfirmPassword(e.target.value)}
-								placeholder="Re-enter password"
+								placeholder={t("register.reenterPassword")}
 								className={`w-full px-4 py-3 bg-white border rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base ${
 									confirmPassword && password !== confirmPassword 
 										? "border-red-500" 
@@ -239,7 +241,7 @@ export default function RegisterPage() {
 								required
 							/>
 							{confirmPassword && password !== confirmPassword && (
-								<p className="text-xs text-red-600 mt-1">Passwords do not match</p>
+								<p className="text-xs text-red-600 mt-1">{t("register.passwordsDoNotMatch")}</p>
 							)}
 						</div>
 
@@ -254,10 +256,10 @@ export default function RegisterPage() {
 										<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
 										<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
 									</svg>
-									Creating Account...
+									{t("register.creatingAccount")}
 								</span>
 							) : (
-								"Create Account"
+								t("register.createAccount")
 							)}
 						</button>
 					</form>
@@ -266,30 +268,30 @@ export default function RegisterPage() {
 						<p className="text-[#475569] text-sm sm:text-base mb-2">
 							{userType === "individual" ? (
 								<>
-									Want to hire talent?{" "}
+									{t("register.wantToHire")}{" "}
 									<button 
 										onClick={() => setUserType("employer")} 
 										className="text-[#2563EB] hover:text-[#1E40AF] font-medium"
 									>
-										Create Employer Account
+										{t("register.createEmployerAccountLink")}
 									</button>
 								</>
 							) : (
 								<>
-									Looking for opportunities?{" "}
+									{t("register.lookingForOpportunities")}{" "}
 									<button 
 										onClick={() => setUserType("individual")} 
 										className="text-[#2563EB] hover:text-[#1E40AF] font-medium"
 									>
-										Join as Individual
+										{t("register.joinAsIndividual")}
 									</button>
 								</>
 							)}
 						</p>
 						<p className="text-[#475569] text-sm sm:text-base">
-							Already have an account?{" "}
+							{t("register.alreadyHaveAccount")}{" "}
 							<Link href="/login" className="text-[#2563EB] hover:text-[#1E40AF] font-medium">
-								Sign In
+								{t("auth.signIn")}
 							</Link>
 						</p>
 					</div>

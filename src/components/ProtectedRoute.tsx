@@ -65,7 +65,7 @@ export default function ProtectedRoute({
 				}
 			}
 		}
-	}, [isLoading, isAuthenticated, user, router, getVerificationRedirect, checkAuth]);
+	}, [isLoading, isAuthenticated, user, router, getVerificationRedirect]);
 
 	// Check user type
 	useEffect(() => {

@@ -5,10 +5,12 @@
 
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/router";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function ContactDetailsPage() {
+	const { t } = useTranslation();
 	const router = useRouter();
 	const { user, updateProfile, isLoading, error } = useAuthStore();
 	
@@ -40,8 +42,8 @@ export default function ContactDetailsPage() {
 	const phoneRegex = /^\+[1-9]\d{10,14}$/;
 
 	const validatePhone = (val: string, field: "phone" | "whatsapp") => {
-		if (field === "phone" && !val) return "Phone number is required";
-		if (val && !phoneRegex.test(val)) return "Format: +[CountryCode][Number]";
+		if (field === "phone" && !val) return t("onboarding.contact.phoneRequired");
+		if (val && !phoneRegex.test(val)) return t("onboarding.contact.formatInvalid");
 		return undefined;
 	};
 
@@ -92,13 +94,13 @@ export default function ContactDetailsPage() {
                         <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
                             <div className="h-full bg-blue-600 w-1/3"></div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2 text-right">Step 1 of 3</p>
+                        <p className="text-xs text-gray-500 mt-2 text-right">{t("onboarding.contact.step")}</p>
                     </div>
 
 					<div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
-						<h2 className="text-xl font-bold text-[#0F172A] mb-2">Contact Details</h2>
+						<h2 className="text-xl font-bold text-[#0F172A] mb-2">{t("onboarding.contact.title")}</h2>
 						<p className="text-[#475569] text-sm mb-6">
-							We need your contact information to connect you with opportunities.
+							{t("onboarding.contact.subtitle")}
 						</p>
 
 						{error && (
@@ -110,26 +112,26 @@ export default function ContactDetailsPage() {
 						<form onSubmit={handleSubmit}>
 							<div className="mb-4">
 								<label htmlFor="phone" className="block text-sm font-medium text-[#0F172A] mb-2">
-									Mobile Number <span className="text-red-500">*</span>
+									{t("onboarding.contact.mobileNumber")} <span className="text-red-500">*</span>
 								</label>
 								<input
 									type="tel"
 									id="phone"
 									value={phone}
 									onChange={(e) => setPhone(e.target.value)}
-									placeholder="+919926488445"
+									placeholder={t("onboarding.contact.placeholderPhone")}
 									className={`w-full px-4 py-3 bg-white border rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base ${
 										fieldErrors.phone ? "border-red-500" : "border-[#E2E8F0]"
 									}`}
 								/>
                                 {fieldErrors.phone && <p className="text-xs text-red-600 mt-1">{fieldErrors.phone}</p>}
-                                <p className="text-xs text-[#64748B] mt-1">Format: +[CountryCode][Number]</p>
+                                <p className="text-xs text-[#64748B] mt-1">{t("onboarding.contact.formatHint")}</p>
 							</div>
 
 							<div className="mb-6">
 								<div className="flex items-center justify-between mb-2">
 									<label htmlFor="whatsapp" className="block text-sm font-medium text-[#0F172A]">
-										WhatsApp Number
+										{t("onboarding.contact.whatsappNumber")}
 									</label>
 									<label className="flex items-center text-xs text-[#64748B] cursor-pointer">
 										<input
@@ -138,7 +140,7 @@ export default function ContactDetailsPage() {
 											onChange={(e) => handleSameAsMobileChange(e.target.checked)}
 											className="mr-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 										/>
-										Same as mobile
+										{t("onboarding.contact.sameAsMobile")}
 									</label>
 								</div>
 								<input
@@ -149,7 +151,7 @@ export default function ContactDetailsPage() {
                                         setWhatsapp(e.target.value);
                                         setSameAsMobile(false);
                                     }}
-									placeholder="+919926488445"
+									placeholder={t("onboarding.contact.placeholderPhone")}
 									className={`w-full px-4 py-3 bg-white border rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base ${
 										fieldErrors.whatsapp ? "border-red-500" : "border-[#E2E8F0]"
 									}`}
@@ -162,7 +164,7 @@ export default function ContactDetailsPage() {
 								disabled={isLoading || !phone}
 								className="w-full py-3 px-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
 							>
-								{isLoading ? "Saving..." : "Continue"}
+								{isLoading ? t("onboarding.contact.saving") : t("onboarding.contact.continue")}
 							</button>
 						</form>
 					</div>

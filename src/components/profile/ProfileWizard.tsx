@@ -4,8 +4,9 @@
  * Redesigned from accordion form to self-discovery flow
  */
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
+import { useTranslation } from "react-i18next";
 import {
 	User, MapPin, GraduationCap, Wrench, Briefcase,
 	Users, Wallet, Shield, Heart,
@@ -52,93 +53,26 @@ interface WizardStatus {
 	};
 }
 
-// Step configuration with aspirational titles & benefit copy
-const REQUIRED_STEPS = [
-	{
-		key: "personal",
-		title: "Let's Know You",
-		description: "Your name, photo, and basic details",
-		helperText: "This helps employers trust your profile",
-		icon: <User size={20} />,
-	},
-	{
-		key: "address",
-		title: "Where Do You Belong?",
-		description: "Your city, district, and address",
-		helperText: "We match you with nearby opportunities",
-		icon: <MapPin size={20} />,
-	},
-	{
-		key: "education",
-		title: "Your Education Journey",
-		description: "School, college, or training details",
-		helperText: "Education helps us match the right opportunities for you",
-		icon: <GraduationCap size={20} />,
-	},
-	{
-		key: "skills",
-		title: "Your Skills & Strengths",
-		description: "What you know and can do",
-		helperText: "This is what makes you stand out to employers",
-		icon: <Wrench size={20} />,
-	},
-	{
-		key: "experience",
-		title: "Your Work Story",
-		description: "Previous jobs or fresher status",
-		helperText: "Even fresher experience matters — show your potential",
-		icon: <Briefcase size={20} />,
-	},
-];
-
-const OPTIONAL_STEPS = [
-	{
-		key: "family",
-		title: "Unlock Scholarship Eligibility",
-		description: "Family background for support programs",
-		helperText: "Visible only for eligibility-based programs",
-		icon: <Users size={20} />,
-	},
-	{
-		key: "socio-economic",
-		sectionKey: "socioEconomic",
-		title: "Unlock Government Scheme Eligibility",
-		description: "Income and housing for scheme matching",
-		helperText: "Visible only for eligibility-based programs",
-		icon: <Wallet size={20} />,
-	},
-	{
-		key: "community",
-		title: "Community Details (Optional & Private)",
-		description: "Religion and category with your consent",
-		helperText: "Visible only for eligibility-based matching",
-		icon: <Shield size={20} />,
-	},
-	{
-		key: "interests",
-		title: "Hobbies & Interests",
-		description: "Your interests and activities",
-		helperText: "Helps us recommend relevant content for you",
-		icon: <Heart size={20} />,
-	},
-];
-
-// Benefit messages shown after completing each step
-const BENEFIT_MESSAGES: Record<string, string> = {
-	personal: "Nice! Your profile just became more trustworthy to employers.",
-	address: "Great! We can now match you with nearby opportunities.",
-	education: "Employers can now see your education background.",
-	skills: "Your skills are now visible — stand out from the crowd!",
-	experience: "Your work story is now part of your profile.",
-	family: "You may now be eligible for scholarship programs.",
-	socioEconomic: "You may now qualify for government schemes.",
-	community: "Category information saved securely.",
-	interests: "Your interests help us personalize recommendations.",
-};
-
 export default function ProfileWizard() {
+	const { t } = useTranslation();
 	const router = useRouter();
 	const { user } = useAuthStore();
+
+	// Step configuration with aspirational titles & benefit copy (translated)
+	const REQUIRED_STEPS = useMemo(() => [
+		{ key: "personal", title: t("profileWizard.steps.personalTitle"), description: t("profileWizard.steps.personalDesc"), helperText: t("profileWizard.steps.personalHelper"), icon: <User size={20} /> },
+		{ key: "address", title: t("profileWizard.steps.addressTitle"), description: t("profileWizard.steps.addressDesc"), helperText: t("profileWizard.steps.addressHelper"), icon: <MapPin size={20} /> },
+		{ key: "education", title: t("profileWizard.steps.educationTitle"), description: t("profileWizard.steps.educationDesc"), helperText: t("profileWizard.steps.educationHelper"), icon: <GraduationCap size={20} /> },
+		{ key: "skills", title: t("profileWizard.steps.skillsTitle"), description: t("profileWizard.steps.skillsDesc"), helperText: t("profileWizard.steps.skillsHelper"), icon: <Wrench size={20} /> },
+		{ key: "experience", title: t("profileWizard.steps.experienceTitle"), description: t("profileWizard.steps.experienceDesc"), helperText: t("profileWizard.steps.experienceHelper"), icon: <Briefcase size={20} /> },
+	], [t]);
+
+	const OPTIONAL_STEPS = useMemo(() => [
+		{ key: "family", title: t("profileWizard.steps.familyTitle"), description: t("profileWizard.steps.familyDesc"), helperText: t("profileWizard.steps.familyHelper"), icon: <Users size={20} /> },
+		{ key: "socio-economic", sectionKey: "socioEconomic", title: t("profileWizard.steps.socioEconomicTitle"), description: t("profileWizard.steps.socioEconomicDesc"), helperText: t("profileWizard.steps.socioEconomicHelper"), icon: <Wallet size={20} /> },
+		{ key: "community", title: t("profileWizard.steps.communityTitle"), description: t("profileWizard.steps.communityDesc"), helperText: t("profileWizard.steps.communityHelper"), icon: <Shield size={20} /> },
+		{ key: "interests", title: t("profileWizard.steps.interestsTitle"), description: t("profileWizard.steps.interestsDesc"), helperText: t("profileWizard.steps.interestsHelper"), icon: <Heart size={20} /> },
+	], [t]);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [status, setStatus] = useState<WizardStatus | null>(null);
@@ -164,7 +98,7 @@ export default function ProfileWizard() {
 
 	// Show benefit toast
 	const showBenefitToast = (sectionKey: string) => {
-		const message = BENEFIT_MESSAGES[sectionKey] || "Section saved successfully!";
+		const message = t(`profileWizard.benefits.${sectionKey}`) || t("profileWizard.sectionSavedSuccess");
 		setToastMessage(message);
 		setShowToast(true);
 		setShowConfetti(true);
@@ -498,7 +432,7 @@ export default function ProfileWizard() {
 			<div className="min-h-[60vh] flex items-center justify-center">
 				<div className="text-center">
 					<div className="animate-spin w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
-					<p className="text-gray-500 text-sm">Loading your profile...</p>
+					<p className="text-gray-500 text-sm">{t("profileWizard.loadingProfile")}</p>
 				</div>
 			</div>
 		);
@@ -509,7 +443,7 @@ export default function ProfileWizard() {
 		maxXP: 145,
 		completionPercentage: 0,
 		level: 1,
-		levelName: "Newcomer",
+		levelName: t("profileWizard.levelNewcomer"),
 		isProfileComplete: false,
 		completedRequired: 0,
 		totalRequired: 5,
@@ -533,6 +467,9 @@ export default function ProfileWizard() {
 			<PersuasionPopup
 				show={showPersuasion}
 				onClose={() => setShowPersuasion(false)}
+				title={t("profileWizard.persuasion.almostThere")}
+				description={t("profileWizard.persuasion.completeToIncrease")}
+				buttonText={t("profileWizard.persuasion.letsFinishIt")}
 			/>
 
 			{/* Conversational Header */}
@@ -543,10 +480,10 @@ export default function ProfileWizard() {
 					</div>
 					<div>
 						<h1 className="text-xl font-bold text-gray-900">
-							Hi {userName}, let&apos;s build your professional story
+							{t("profileWizard.hiLetsBuild", { name: userName })}
 						</h1>
 						<p className="text-sm text-gray-500">
-							Complete your profile to unlock opportunities
+							{t("profileWizard.completeProfileToUnlock")}
 						</p>
 					</div>
 				</div>
@@ -557,19 +494,28 @@ export default function ProfileWizard() {
 						completionPercentage={summary.completionPercentage}
 						completedSteps={summary.completedRequired || 0}
 						totalSteps={summary.totalRequired || 5}
+						stepLabels={[
+							t("profileWizard.progressSteps.basicInfo"),
+							t("profileWizard.progressSteps.location"),
+							t("profileWizard.progressSteps.education"),
+							t("profileWizard.progressSteps.skills"),
+							t("profileWizard.progressSteps.experience"),
+						]}
+						percentCompleteLabel={t("profileWizard.progress.percentComplete")}
+						minLeftLabel={t("profileWizard.progress.minLeft")}
 					/>
 
 					{summary.isProfileComplete && (
 						<div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl text-center">
 							<p className="text-blue-800 font-semibold flex items-center justify-center gap-1.5 text-sm">
 								<Sparkles size={16} />
-								You&apos;re ready! Let&apos;s find opportunities for you.
+								{t("profileWizard.youreReadyLetsFind")}
 							</p>
 							<button
 								onClick={() => router.push("/jobs")}
 								className="mt-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center gap-1.5 mx-auto shadow-md shadow-blue-500/20"
 							>
-								View Matched Jobs
+								{t("profileWizard.viewMatchedJobs")}
 								<ArrowRight size={14} />
 							</button>
 						</div>
@@ -582,10 +528,10 @@ export default function ProfileWizard() {
 				<div className="flex items-center justify-between mb-3">
 					<h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
 						<Sparkles size={14} className="text-blue-600" />
-						Your Journey
+						{t("profileWizard.yourJourney")}
 					</h2>
 					<span className="text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-						{summary.completedRequired || 0} of {summary.totalRequired || 5} done
+						{t("profileWizard.ofDone", { done: summary.completedRequired || 0, total: summary.totalRequired || 5 })}
 					</span>
 				</div>
 
@@ -676,17 +622,17 @@ export default function ProfileWizard() {
 				<div className="flex items-center gap-2 mb-3">
 					<h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
 						<Lock size={14} className="text-gray-400" />
-						Unlock More Benefits
+						{t("profileWizard.unlockMoreBenefits")}
 					</h2>
 					<span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-						Optional
+						{t("profileWizard.optional")}
 					</span>
 				</div>
 
 				{/* Privacy notice */}
 				<div className="mb-3 flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl">
 					<Shield size={14} className="text-gray-400 flex-shrink-0" />
-					<span>Private & Secure — visible only for eligibility-based programs</span>
+					<span>{t("profileWizard.privateSecureNotice")}</span>
 				</div>
 
 				<div className="space-y-3">

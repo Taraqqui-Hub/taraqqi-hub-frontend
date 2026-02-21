@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useAuthStore } from "@/store/authStore";
@@ -22,16 +23,15 @@ import {
     Bell
 } from "lucide-react";
 
-// Profile sections with completion tracking
-const PROFILE_SECTIONS = [
-    { id: "personal", label: "Personal Info", icon: User, required: true },
-    { id: "education", label: "Education", icon: GraduationCap, required: true },
-    { id: "skills", label: "Skills", icon: Star, required: true },
-    { id: "experience", label: "Experience", icon: Briefcase, required: true },
-];
-
 export default function Dashboard() {
+    const { t } = useTranslation();
     const { user, isVerified } = useAuthStore();
+    const PROFILE_SECTIONS = [
+        { id: "personal", label: t("dashboard.personalInfo"), icon: User, required: true },
+        { id: "education", label: t("dashboard.education"), icon: GraduationCap, required: true },
+        { id: "skills", label: t("dashboard.skills"), icon: Star, required: true },
+        { id: "experience", label: t("dashboard.experience"), icon: Briefcase, required: true },
+    ];
     const [profileData, setProfileData] = useState<any>(null);
     
     // Calculate profile completion based on user data
@@ -60,9 +60,9 @@ export default function Dashboard() {
                                         <AlertCircle className="w-6 h-6 text-amber-600" />
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-gray-900">Complete Your Profile</h3>
+                                        <h3 className="font-semibold text-gray-900">{t("dashboard.completeProfile")}</h3>
                                         <p className="text-sm text-gray-600 mt-1">
-                                            Your profile is {profileCompletion}% complete. Complete all sections to unlock full platform access.
+                                            {t("dashboard.profileCompletePct", { pct: profileCompletion })}
                                         </p>
                                     </div>
                                 </div>
@@ -70,7 +70,7 @@ export default function Dashboard() {
                                     href="/profile"
                                     className="flex items-center gap-2 px-5 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition shadow-sm"
                                 >
-                                    Complete Now
+                                    {t("dashboard.completeNow")}
                                     <ChevronRight className="w-4 h-4" />
                                 </Link>
                             </div>
@@ -99,11 +99,11 @@ export default function Dashboard() {
                                 {/* User Info */}
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                        <h2 className="text-xl font-bold text-gray-900">{user?.name || "User"}</h2>
+                                        <h2 className="text-xl font-bold text-gray-900">{user?.name || t("common.user")}</h2>
                                         {isVerified() && (
                                             <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                                 <CheckCircle2 className="w-3 h-3" />
-                                                Verified
+                                                {t("dashboard.verified")}
                                             </span>
                                         )}
                                     </div>
@@ -128,7 +128,7 @@ export default function Dashboard() {
                                     href="/profile"
                                     className="px-4 py-2 border border-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition text-sm"
                                 >
-                                    Edit Profile
+                                    {t("dashboard.editProfile")}
                                 </Link>
                             </div>
                         </div>
@@ -154,7 +154,7 @@ export default function Dashboard() {
                                                     {section.label}
                                                 </p>
                                                 <p className={`text-xs ${isComplete ? 'text-green-600' : 'text-gray-400'}`}>
-                                                    {isComplete ? 'Complete' : 'Incomplete'}
+                                                    {isComplete ? t("dashboard.complete") : t("dashboard.incomplete")}
                                                 </p>
                                             </div>
                                         </div>
@@ -172,7 +172,7 @@ export default function Dashboard() {
                             <div className="p-5 border-b border-gray-100">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <TrendingUp className="w-5 h-5 text-blue-600" />
-                                    Quick Actions
+                                    {t("dashboard.quickActions")}
                                 </h3>
                             </div>
                             <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -184,8 +184,8 @@ export default function Dashboard() {
                                         <Briefcase className="w-5 h-5 text-blue-600" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-gray-900">Browse Jobs</p>
-                                        <p className="text-sm text-gray-500">Find opportunities</p>
+                                        <p className="font-medium text-gray-900">{t("dashboard.browseJobs")}</p>
+                                        <p className="text-sm text-gray-500">{t("dashboard.findOpportunities")}</p>
                                     </div>
                                 </Link>
                                 
@@ -197,8 +197,8 @@ export default function Dashboard() {
                                         <FileText className="w-5 h-5 text-purple-600" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-gray-900">My Applications</p>
-                                        <p className="text-sm text-gray-500">Track your progress</p>
+                                        <p className="font-medium text-gray-900">{t("dashboard.myApplications")}</p>
+                                        <p className="text-sm text-gray-500">{t("dashboard.trackProgress")}</p>
                                     </div>
                                 </Link>
                                 
@@ -210,8 +210,8 @@ export default function Dashboard() {
                                         <User className="w-5 h-5 text-green-600" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-gray-900">Update Profile</p>
-                                        <p className="text-sm text-gray-500">Keep info current</p>
+                                        <p className="font-medium text-gray-900">{t("dashboard.updateProfile")}</p>
+                                        <p className="text-sm text-gray-500">{t("dashboard.keepInfoCurrent")}</p>
                                     </div>
                                 </Link>
                                 
@@ -223,8 +223,8 @@ export default function Dashboard() {
                                         <Shield className="w-5 h-5 text-amber-600" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-gray-900">Verification</p>
-                                        <p className="text-sm text-gray-500">KYC status</p>
+                                        <p className="font-medium text-gray-900">{t("common.verification")}</p>
+                                        <p className="text-sm text-gray-500">{t("dashboard.kycStatus")}</p>
                                     </div>
                                 </Link>
                             </div>
@@ -235,14 +235,14 @@ export default function Dashboard() {
                             <div className="p-5 border-b border-gray-100">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <Bell className="w-5 h-5 text-purple-600" />
-                                    Recent Activity
+                                    {t("dashboard.recentActivity")}
                                 </h3>
                             </div>
                             <div className="divide-y divide-gray-50">
                                 {[
-                                    { text: "Profile updated", time: "Just now" },
-                                    { text: "KYC submitted", time: "1 hour ago" },
-                                    { text: "Account created", time: "Today" },
+                                    { text: t("dashboard.profileUpdated"), time: t("dashboard.justNow") },
+                                    { text: t("dashboard.kycSubmitted"), time: t("dashboard.hourAgo") },
+                                    { text: t("dashboard.accountCreated"), time: t("dashboard.today") },
                                 ].map((activity, i) => (
                                     <div key={i} className="p-4 hover:bg-gray-50 transition flex gap-3 items-center">
                                         <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
@@ -264,23 +264,21 @@ export default function Dashboard() {
                             </div>
                             <div className="flex-1">
                                 <h4 className="font-semibold text-slate-800 flex items-center gap-2">
-                                    Your Data is Protected
+                                    {t("dashboard.dataProtected")}
                                     <Eye className="w-4 h-4 text-slate-400" />
                                 </h4>
                                 <p className="text-sm text-slate-600 mt-1 leading-relaxed">
-                                    We collect your information to connect you with relevant opportunities and improve your experience. 
-                                    Your personal data is encrypted, stored securely, and never shared without your consent. 
-                                    You can manage your data preferences and request deletion anytime.
+                                    {t("dashboard.dataProtectedDesc")}
                                 </p>
                                 <div className="flex flex-wrap gap-3 mt-3">
                                     <Link href="/privacy" className="text-xs text-blue-600 hover:underline">
-                                        Privacy Policy
+                                        {t("dashboard.privacyPolicy")}
                                     </Link>
                                     <Link href="/terms" className="text-xs text-blue-600 hover:underline">
-                                        Terms of Service
+                                        {t("dashboard.termsOfService")}
                                     </Link>
                                     <Link href="/data-rights" className="text-xs text-blue-600 hover:underline">
-                                        Your Data Rights
+                                        {t("dashboard.yourDataRights")}
                                     </Link>
                                 </div>
                             </div>

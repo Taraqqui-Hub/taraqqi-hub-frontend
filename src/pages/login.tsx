@@ -6,10 +6,13 @@
 import { useState, FormEvent, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function LoginPage() {
 	const router = useRouter();
+	const { t } = useTranslation();
 	const { 
 		login, 
 		isLoading, 
@@ -17,7 +20,6 @@ export default function LoginPage() {
 		clearError, 
 		isAuthenticated,
 		user,
-		checkAuth,
 		getVerificationRedirect 
 	} = useAuthStore();
 
@@ -25,11 +27,7 @@ export default function LoginPage() {
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 
-	// Check auth status on mount to ensure user data is fresh
-	useEffect(() => {
-		checkAuth();
-	}, [checkAuth]);
-
+	// Auth is already checked in _app.tsx; redirect when user becomes available
 	// Redirect based on verification status
 	useEffect(() => {
 		if (!isLoading && isAuthenticated && user) {
@@ -76,17 +74,20 @@ export default function LoginPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
+		<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8 relative">
 			<div className="w-full max-w-md">
+				<div className="absolute top-4 right-4">
+					<LanguageSwitcher />
+				</div>
 				{/* Logo / Brand */}
 				<div className="text-center mb-6 sm:mb-8">
 					<h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] mb-1 sm:mb-2">Taraqqi Hub</h1>
-					<p className="text-sm sm:text-base text-[#475569]">Your career journey starts here</p>
+					<p className="text-sm sm:text-base text-[#475569]">{t("auth.tagline")}</p>
 				</div>
 
 				{/* Login Card */}
 				<div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
-					<h2 className="text-lg sm:text-xl font-semibold text-[#0F172A] mb-6">Sign In</h2>
+					<h2 className="text-lg sm:text-xl font-semibold text-[#0F172A] mb-6">{t("auth.signIn")}</h2>
 
 					{error && (
 						<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6 text-sm">
@@ -100,14 +101,14 @@ export default function LoginPage() {
 								htmlFor="email"
 								className="block text-sm font-medium text-[#0F172A] mb-2"
 							>
-								Email Address
+								{t("auth.emailAddress")}
 							</label>
 							<input
 								type="email"
 								id="email"
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
-								placeholder="you@example.com"
+								placeholder={t("auth.placeholders.email")}
 								className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base"
 								required
 							/>
@@ -118,7 +119,7 @@ export default function LoginPage() {
 								htmlFor="password"
 								className="block text-sm font-medium text-[#0F172A] mb-2"
 							>
-								Password
+								{t("auth.password")}
 							</label>
 							<div className="relative">
 								<input
@@ -126,7 +127,7 @@ export default function LoginPage() {
 									id="password"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									placeholder="••••••••"
+									placeholder={t("auth.placeholders.password")}
 									className="w-full px-4 py-3 bg-white border border-[#E2E8F0] rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition pr-12 text-base"
 									required
 								/>
@@ -152,7 +153,7 @@ export default function LoginPage() {
 									href="/forgot-password"
 									className="text-sm text-[#2563EB] hover:text-[#1E40AF]"
 								>
-									Forgot password?
+									{t("auth.forgotPassword")}
 								</Link>
 							</div>
 						</div>
@@ -183,22 +184,22 @@ export default function LoginPage() {
 											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
 										/>
 									</svg>
-									Signing in...
+									{t("auth.signingIn")}
 								</span>
 							) : (
-								"Sign In"
+								t("auth.signIn")
 							)}
 						</button>
 					</form>
 
 					<div className="mt-6 text-center">
 						<p className="text-[#475569] text-sm sm:text-base">
-							Don&apos;t have an account?{" "}
+							{t("auth.dontHaveAccount")}{" "}
 							<Link
 								href="/register"
 								className="text-[#2563EB] hover:text-[#1E40AF] font-medium"
 							>
-								Register
+								{t("auth.register")}
 							</Link>
 						</p>
 					</div>

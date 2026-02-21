@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { MapPin, Building } from "lucide-react";
 import { INDIAN_STATES_DISTRICTS } from "../../../data/indianStatesDistricts";
 import MultiSelect from "../../common/MultiSelect"; // Ensure correct path to common components
@@ -26,6 +27,7 @@ interface AddressSectionProps {
 }
 
 export default function AddressSection({ data, onChange, onSave, saving }: AddressSectionProps) {
+	const { t } = useTranslation();
 	// Prepare State Options
 	const stateOptions = useMemo(() => 
 		INDIAN_STATES_DISTRICTS.map(s => ({ value: s.state, label: s.state })), 
@@ -97,19 +99,19 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 	return (
 		<div className="space-y-6">
 			<div>
-				<h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mb-4">Permanent Address</h3>
+				<h3 className="text-lg font-semibold text-gray-900 border-b pb-2 mb-4">{t("profileWizard.address.permanentAddress")}</h3>
 			</div>
 
 			{/* Address Line 1 */}
 			<div>
 				<label className="block text-sm font-medium text-gray-700 mb-1">
-					Address Line 1 <span className="text-red-500">*</span>
+					{t("profileWizard.address.addressLine1")} <span className="text-red-500">*</span>
 				</label>
 				<input
 					type="text"
 					value={data.addressLine1 || ""}
 					onChange={e => onChange({ ...data, addressLine1: e.target.value })}
-					placeholder="House No., Building, Street Area"
+					placeholder={t("profileWizard.address.placeholderAddress1")}
 					className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm outline-none"
 				/>
 			</div>
@@ -117,13 +119,13 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 			{/* Address Line 2 */}
 			<div>
 				<label className="block text-sm font-medium text-gray-700 mb-1">
-					Address Line 2 <span className="text-gray-400 text-xs">(Optional)</span>
+					{t("profileWizard.address.addressLine2")} <span className="text-gray-400 text-xs">({t("profileWizard.address.optional")})</span>
 				</label>
 				<input
 					type="text"
 					value={data.addressLine2 || ""}
 					onChange={e => onChange({ ...data, addressLine2: e.target.value })}
-					placeholder="Landmark, or extended address"
+					placeholder={t("profileWizard.address.placeholderAddress2")}
 					className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm outline-none"
 				/>
 			</div>
@@ -132,7 +134,7 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-5 pointer-events-auto">
 				<div className="relative"> {/* Added relative to contain z-index context if needed */}
 					<label className="block text-sm font-medium text-gray-700 mb-1">
-						City / Town <span className="text-red-500">*</span>
+						{t("profileWizard.address.cityTown")} <span className="text-red-500">*</span>
 					</label>
 					<div className="relative">
 						<Building size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -140,26 +142,26 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 							type="text"
 							value={data.currentCity || ""}
 							onChange={e => onChange({ ...data, currentCity: e.target.value })}
-							placeholder="e.g. Indore, Mumbai"
+							placeholder={t("profileWizard.address.placeholderCity")}
 							className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm outline-none"
 						/>
 					</div>
 				</div>
 				<div className="relative z-20"> {/* Higher Z-Index for MultiSelect Dropdown */}
 					<label className="block text-sm font-medium text-gray-700 mb-1">
-						District <span className="text-red-500">*</span>
+						{t("profileWizard.address.district")} <span className="text-red-500">*</span>
 					</label>
 					<MultiSelect
 						options={districtOptions}
 						selected={selectedDistrictValue}
 						onChange={handleDistrictChange}
-						placeholder="Select District"
-						searchPlaceholder="Search District..."
+						placeholder={t("profileWizard.address.selectDistrict")}
+						searchPlaceholder={t("profileWizard.address.searchDistrict")}
 						singleSelect
 						required
 					/>
 					{!data.state && data.district && (
-						<p className="text-xs text-blue-600 mt-1">State auto-selected based on district.</p>
+						<p className="text-xs text-blue-600 mt-1">{t("profileWizard.address.stateAutoSelected")}</p>
 					)}
 				</div>
 			</div>
@@ -168,21 +170,21 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 				<div className="relative z-10">
 					<label className="block text-sm font-medium text-gray-700 mb-1">
-						State / Union Territory <span className="text-red-500">*</span>
+						{t("profileWizard.address.stateUT")} <span className="text-red-500">*</span>
 					</label>
 					<MultiSelect
 						options={stateOptions}
 						selected={data.state ? [data.state] : []}
 						onChange={handleStateChange}
-						placeholder="Select State"
-						searchPlaceholder="Search State..."
+						placeholder={t("profileWizard.address.selectState")}
+						searchPlaceholder={t("profileWizard.address.searchState")}
 						singleSelect
 						required
 					/>
 				</div>
 				<div>
 					<label className="block text-sm font-medium text-gray-700 mb-1">
-						Zip Code <span className="text-red-500">*</span>
+						{t("profileWizard.address.zipCode")} <span className="text-red-500">*</span>
 					</label>
 					<div className="relative">
 						<MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -193,7 +195,7 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 								const val = e.target.value.replace(/\D/g, "").slice(0, 6);
 								onChange({ ...data, pincode: val });
 							}}
-							placeholder="e.g. 452001"
+							placeholder={t("profileWizard.address.placeholderPincode")}
 							maxLength={6}
 							className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all text-sm outline-none"
 						/>
@@ -211,10 +213,10 @@ export default function AddressSection({ data, onChange, onSave, saving }: Addre
 					{saving ? (
 						<>
 							<div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-							Saving...
+							{t("profileWizard.personal.saving")}
 						</>
 					) : (
-						"Continue → Next Step"
+						t("profileWizard.personal.continueNextStep")
 					)}
 				</button>
 			</div>
