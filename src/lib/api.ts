@@ -10,17 +10,37 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 // Create axios instance
 const api = axios.create({
 	baseURL: API_BASE_URL,
-	withCredentials: true, // Send cookies with requests
+	withCredentials: true, // Send cookies with requests (refresh token cookie)
 	headers: {
 		"Content-Type": "application/json",
 	},
 });
 
-// Token storage (in-memory for security)
-let accessToken: string | null = null;
+const ACCESS_TOKEN_KEY = "th_access_token";
+
+function getStoredAccessToken(): string | null {
+	if (typeof window === "undefined") return null;
+	try {
+		return sessionStorage.getItem(ACCESS_TOKEN_KEY);
+	} catch {
+		return null;
+	}
+}
+
+// Token storage: memory + sessionStorage so session persists across page reload (same tab)
+let accessToken: string | null =
+	typeof window !== "undefined" ? getStoredAccessToken() : null;
 
 export const setAccessToken = (token: string | null) => {
 	accessToken = token;
+	if (typeof window !== "undefined") {
+		try {
+			if (token) sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+			else sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+		} catch {
+			// ignore
+		}
+	}
 };
 
 export const getAccessToken = () => accessToken;

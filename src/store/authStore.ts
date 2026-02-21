@@ -179,9 +179,21 @@ export const useAuthStore = create<AuthState>()(
 				set({ isLoading: true, error: null });
 				try {
 					await authApi.updateProfile(data);
-					// Refresh user data
-					await get().checkAuth();
-					set({ isLoading: false });
+					// Update user in store from getMe (keep current session; avoid checkAuth/refresh which can redirect to login)
+					const response = await authApi.getMe();
+					const payload = response?.payload ?? response;
+					const updatedUser = payload?.user;
+					if (updatedUser) {
+						set({
+							user: {
+								...updatedUser,
+								permissions: payload?.permissions ?? updatedUser.permissions ?? [],
+							},
+							isLoading: false,
+						});
+					} else {
+						set({ isLoading: false });
+					}
 				} catch (error: any) {
 					const message =
 						error.response?.data?.error ||

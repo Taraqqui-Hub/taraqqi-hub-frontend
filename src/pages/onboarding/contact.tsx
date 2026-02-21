@@ -1,6 +1,6 @@
 /**
  * Contact Details Page (Screen 4A)
- * Collects Phone and WhatsApp. Phone verification is skipped for now but planned.
+ * Collects Phone and WhatsApp. Default country +91, dummy placeholder only.
  */
 
 import { useState, FormEvent, useEffect } from "react";
@@ -9,35 +9,40 @@ import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
+const DEFAULT_COUNTRY_CODE = "+91";
+const COUNTRY_CODES = [
+	{ code: "+91", label: "India (+91)" },
+	{ code: "+1", label: "US/Canada (+1)" },
+	{ code: "+44", label: "UK (+44)" },
+	{ code: "+92", label: "Pakistan (+92)" },
+	{ code: "+971", label: "UAE (+971)" },
+	{ code: "+966", label: "Saudi (+966)" },
+	{ code: "+61", label: "Australia (+61)" },
+	{ code: "+81", label: "Japan (+81)" },
+	{ code: "+86", label: "China (+86)" },
+	{ code: "+33", label: "France (+33)" },
+	{ code: "+49", label: "Germany (+49)" },
+	{ code: "+65", label: "Singapore (+65)" },
+];
+
 export default function ContactDetailsPage() {
 	const { t } = useTranslation();
 	const router = useRouter();
 	const { user, updateProfile, isLoading, error } = useAuthStore();
-	
-	const [phone, setPhone] = useState("");
-	const [whatsapp, setWhatsapp] = useState("");
+
+	const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
+	const [phoneNumber, setPhoneNumber] = useState("");
+	const [whatsappCountryCode, setWhatsappCountryCode] = useState(DEFAULT_COUNTRY_CODE);
+	const [whatsappNumber, setWhatsappNumber] = useState("");
 	const [sameAsMobile, setSameAsMobile] = useState(false);
 	const [fieldErrors, setFieldErrors] = useState<{ phone?: string; whatsapp?: string }>({});
 
-	// Initialize with existing data if available
-	useEffect(() => {
-		if (user) {
-			if (user.phone) {
-				setPhone(user.phone);
-				if (user.phone === user.phone /* Determine logic if needed */) {
-                    // Assuming no whatsapp field in user object yet? 
-                    // API only updates name/phone. 
-                    // User requested "WhatsApp number" in Screen 4A.
-                    // But backend API updateMe only accepts name/phone.
-                    // I might need to add whatsapp to backend or just ignore for now?
-                    // User said "WhatsApp optional but recommended".
-                    // I will collect it but if backend doesn't support it, I might lose it?
-                    // Or maybe store it in `phone` as well if they are same?
-                    // For now I'll focus on primary phone.
-                }
-			}
-		}
-	}, [user]);
+	// Do NOT prefill or show user's real number — placeholder only (dummy number in locale)
+
+	const fullPhone = `${countryCode}${phoneNumber.replace(/\D/g, "")}`;
+	const fullWhatsapp = sameAsMobile
+		? fullPhone
+		: `${whatsappCountryCode}${whatsappNumber.replace(/\D/g, "")}`;
 
 	const phoneRegex = /^\+[1-9]\d{10,14}$/;
 
@@ -50,22 +55,23 @@ export default function ContactDetailsPage() {
 	const handleSameAsMobileChange = (checked: boolean) => {
 		setSameAsMobile(checked);
 		if (checked) {
-			setWhatsapp(phone);
+			setWhatsappCountryCode(countryCode);
+			setWhatsappNumber(phoneNumber);
 		}
 	};
 
-    // Update whatsapp if same as mobile
-    useEffect(() => {
-        if (sameAsMobile) {
-            setWhatsapp(phone);
-        }
-    }, [phone, sameAsMobile]);
+	useEffect(() => {
+		if (sameAsMobile) {
+			setWhatsappCountryCode(countryCode);
+			setWhatsappNumber(phoneNumber);
+		}
+	}, [phoneNumber, countryCode, sameAsMobile]);
 
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
-		
-		const phoneErr = validatePhone(phone, "phone");
-		const waErr = validatePhone(whatsapp, "whatsapp");
+
+		const phoneErr = validatePhone(fullPhone, "phone");
+		const waErr = validatePhone(fullWhatsapp, "whatsapp");
 
 		if (phoneErr || waErr) {
 			setFieldErrors({ phone: phoneErr, whatsapp: waErr });
@@ -73,15 +79,13 @@ export default function ContactDetailsPage() {
 		}
 
 		try {
-			// Save both phone and WhatsApp number
-			await updateProfile({ 
-				phone,
-				...(whatsapp && { whatsappNumber: whatsapp })
+			await updateProfile({
+				phone: fullPhone,
+				...(fullWhatsapp && { whatsappNumber: fullWhatsapp }),
 			});
-			// Navigate to intent selection
 			router.push("/onboarding/intent");
-		} catch (err) {
-			// Error handled in store/UI
+		} catch {
+			// Error shown from store
 		}
 	};
 
@@ -89,16 +93,19 @@ export default function ContactDetailsPage() {
 		<ProtectedRoute allowedUserTypes={["individual", "employer"]}>
 			<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
 				<div className="w-full max-w-md">
-					{/* Progress Indicator? */}
-                    <div className="mb-6">
-                        <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-600 w-1/3"></div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2 text-right">{t("onboarding.contact.step")}</p>
-                    </div>
+					<div className="mb-6">
+						<div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+							<div className="h-full bg-blue-600 w-1/3" />
+						</div>
+						<p className="text-xs text-gray-500 mt-2 text-right">
+							{t("onboarding.contact.step")}
+						</p>
+					</div>
 
-					<div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
-						<h2 className="text-xl font-bold text-[#0F172A] mb-2">{t("onboarding.contact.title")}</h2>
+					<div className="bg-white rounded-xl p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
+						<h2 className="text-xl font-bold text-[#0F172A] mb-2">
+							{t("onboarding.contact.title")}
+						</h2>
 						<p className="text-[#475569] text-sm mb-6">
 							{t("onboarding.contact.subtitle")}
 						</p>
@@ -111,21 +118,39 @@ export default function ContactDetailsPage() {
 
 						<form onSubmit={handleSubmit}>
 							<div className="mb-4">
-								<label htmlFor="phone" className="block text-sm font-medium text-[#0F172A] mb-2">
+								<label
+									htmlFor="phone"
+									className="block text-sm font-medium text-[#0F172A] mb-2"
+								>
 									{t("onboarding.contact.mobileNumber")} <span className="text-red-500">*</span>
 								</label>
-								<input
-									type="tel"
-									id="phone"
-									value={phone}
-									onChange={(e) => setPhone(e.target.value)}
-									placeholder={t("onboarding.contact.placeholderPhone")}
-									className={`w-full px-4 py-3 bg-white border rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base ${
-										fieldErrors.phone ? "border-red-500" : "border-[#E2E8F0]"
-									}`}
-								/>
-                                {fieldErrors.phone && <p className="text-xs text-red-600 mt-1">{fieldErrors.phone}</p>}
-                                <p className="text-xs text-[#64748B] mt-1">{t("onboarding.contact.formatHint")}</p>
+								<div className="flex rounded-md border border-[#E2E8F0] overflow-hidden focus-within:ring-2 focus-within:ring-[#2563EB] focus-within:border-transparent">
+									<select
+										value={countryCode}
+										onChange={(e) => setCountryCode(e.target.value)}
+										className="px-3 py-3 bg-[#F8FAFC] border-r border-[#E2E8F0] text-[#0F172A] text-sm font-medium focus:outline-none min-w-[110px]"
+										aria-label="Country code"
+									>
+										{COUNTRY_CODES.map(({ code, label }) => (
+											<option key={code} value={code}>
+												{label}
+											</option>
+										))}
+									</select>
+									<input
+										type="tel"
+										id="phone"
+										value={phoneNumber}
+										onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 15))}
+										placeholder={t("onboarding.contact.placeholderPhone")}
+										className="flex-1 px-4 py-3 text-[#0F172A] placeholder-[#94A3B8] focus:outline-none min-w-0"
+										autoComplete="tel-national"
+									/>
+								</div>
+								{fieldErrors.phone && (
+									<p className="text-xs text-red-600 mt-1">{fieldErrors.phone}</p>
+								)}
+								<p className="text-xs text-[#64748B] mt-1">{t("onboarding.contact.formatHint")}</p>
 							</div>
 
 							<div className="mb-6">
@@ -143,25 +168,45 @@ export default function ContactDetailsPage() {
 										{t("onboarding.contact.sameAsMobile")}
 									</label>
 								</div>
-								<input
-									type="tel"
-									id="whatsapp"
-									value={whatsapp}
-									onChange={(e) => {
-                                        setWhatsapp(e.target.value);
-                                        setSameAsMobile(false);
-                                    }}
-									placeholder={t("onboarding.contact.placeholderPhone")}
-									className={`w-full px-4 py-3 bg-white border rounded-md text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition text-base ${
-										fieldErrors.whatsapp ? "border-red-500" : "border-[#E2E8F0]"
-									}`}
-								/>
-                                {fieldErrors.whatsapp && <p className="text-xs text-red-600 mt-1">{fieldErrors.whatsapp}</p>}
+								<div className="flex rounded-md border border-[#E2E8F0] overflow-hidden focus-within:ring-2 focus-within:ring-[#2563EB] focus-within:border-transparent">
+									<select
+										value={whatsappCountryCode}
+										onChange={(e) => {
+											setWhatsappCountryCode(e.target.value);
+											setSameAsMobile(false);
+										}}
+										disabled={sameAsMobile}
+										className="px-3 py-3 bg-[#F8FAFC] border-r border-[#E2E8F0] text-[#0F172A] text-sm font-medium focus:outline-none min-w-[110px] disabled:opacity-70"
+										aria-label="WhatsApp country code"
+									>
+										{COUNTRY_CODES.map(({ code, label }) => (
+											<option key={code} value={code}>
+												{label}
+											</option>
+										))}
+									</select>
+									<input
+										type="tel"
+										id="whatsapp"
+										value={whatsappNumber}
+										onChange={(e) => {
+											setWhatsappNumber(e.target.value.replace(/\D/g, "").slice(0, 15));
+											setSameAsMobile(false);
+										}}
+										placeholder={t("onboarding.contact.placeholderPhone")}
+										disabled={sameAsMobile}
+										className="flex-1 px-4 py-3 text-[#0F172A] placeholder-[#94A3B8] focus:outline-none min-w-0 disabled:opacity-70"
+										autoComplete="tel-national"
+									/>
+								</div>
+								{fieldErrors.whatsapp && (
+									<p className="text-xs text-red-600 mt-1">{fieldErrors.whatsapp}</p>
+								)}
 							</div>
 
 							<button
 								type="submit"
-								disabled={isLoading || !phone}
+								disabled={isLoading || !phoneNumber.trim()}
 								className="w-full py-3 px-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
 							>
 								{isLoading ? t("onboarding.contact.saving") : t("onboarding.contact.continue")}

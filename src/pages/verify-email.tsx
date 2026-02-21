@@ -31,12 +31,16 @@ export default function VerifyEmailPage() {
 		try {
 			await authApi.verifyEmail(verificationToken);
 			setStatus("success");
-			// Try to refresh session to update verification status in store
+			// If we have a session (same browser), redirect to next step (e.g. contact) instead of showing "Sign In"
 			try {
 				const { useAuthStore } = await import("@/store/authStore");
 				await useAuthStore.getState().checkAuth();
-			} catch (e) {
-				// Ignore if checkAuth fails (e.g. different device)
+				const redirect = useAuthStore.getState().getVerificationRedirect();
+				if (redirect) {
+					router.replace(redirect);
+				}
+			} catch {
+				// No session (e.g. opened link in different device) — stay on success screen with Sign In
 			}
 		} catch (err: any) {
 			setError(err.response?.data?.error || "Verification failed");

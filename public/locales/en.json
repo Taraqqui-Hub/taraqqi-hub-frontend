@@ -313,7 +313,7 @@
       "mobileNumber": "Mobile Number",
       "whatsappNumber": "WhatsApp Number",
       "sameAsMobile": "Same as mobile",
-      "placeholderPhone": "+919926488445",
+      "placeholderPhone": "9876543210",
       "formatHint": "Format: +[CountryCode][Number]",
       "phoneRequired": "Phone number is required",
       "formatInvalid": "Format: +[CountryCode][Number]",
