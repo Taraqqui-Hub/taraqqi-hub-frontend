@@ -403,11 +403,12 @@ export default function ApplicationsPage() {
 								<Briefcase className="w-8 h-8 text-slate-300" />
 							</div>
 							<h3 className="text-lg font-bold text-slate-900 mb-1">{t("applications.noApplications")}</h3>
-							<p className="text-slate-500 mb-6 max-w-sm mx-auto">
+							<p className="text-slate-500 mb-3 max-w-sm mx-auto">
 								{filterStatus === "all" 
 									? t("applications.noApplicationsDesc") 
 									: t("applications.noApplicationsFiltered", { status: statusConfig[filterStatus]?.label || filterStatus })}
 							</p>
+							<p className="text-sm text-slate-500 mb-6">{t("help.stuckWhatsAppUs")}</p>
 							{filterStatus === "all" ? (
 								<Link
 									href="/jobs"

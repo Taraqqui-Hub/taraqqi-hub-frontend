@@ -3,65 +3,88 @@
  * Company details before KYC
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/router";
-import { Search, Building, MapPin, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Building, MapPin } from "lucide-react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { INDIAN_STATES_DISTRICTS } from "@/data/indianStatesDistricts";
 
-// Complete list of Indian States and Union Territories
-const INDIAN_STATES = [
-	"Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana",
-	"Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
-	"Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
-	"Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-	"Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
-	"Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+// Broad list of common industry types for employers
+const INDUSTRY_OPTIONS = [
+	"Information Technology (IT) & Software",
+	"Business Process Outsourcing (BPO) / KPO",
+	"Banking, Financial Services & Insurance (BFSI)",
+	"E-commerce & Internet",
+	"Telecommunications",
+	"Manufacturing",
+	"Automobile & Auto Components",
+	"Construction & Real Estate",
+	"Infrastructure & Engineering",
+	"Retail & Wholesale",
+	"FMCG (Fast-Moving Consumer Goods)",
+	"Food & Beverages",
+	"Healthcare & Hospitals",
+	"Pharmaceuticals & Biotechnology",
+	"Education & Training",
+	"Media, Entertainment & Publishing",
+	"Advertising, PR & Marketing",
+	"Consulting & Professional Services",
+	"Legal Services",
+	"Travel, Hospitality & Tourism",
+	"Transport, Logistics & Warehousing",
+	"Energy, Oil & Gas",
+	"Power & Utilities",
+	"Mining & Metals",
+	"Electronics & Hardware",
+	"Agriculture & Agro-based",
+	"Textiles & Apparel",
+	"Non-profit / NGO / Social Sector",
+	"Government / Public Sector",
+	"Startups & Early-stage Ventures",
+	"Other / Not Listed",
 ];
-
-interface PincodeLookupState {
-	loading: boolean;
-	error: string | null;
-	success: boolean;
-	places: string[];
-}
 
 export default function EmployerRegisterCompanyPage() {
 	const router = useRouter();
 	const [saving, setSaving] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	
-	const lastLookedUpPincode = useRef<string | null>(null);
-	const [lookupState, setLookupState] = useState<PincodeLookupState>({
-		loading: false,
-		error: null,
-		success: false,
-		places: [],
-	});
 
 	const [formData, setFormData] = useState({
 		companyName: "",
 		brandName: "",
 		industry: "",
 		companySize: "",
-		city: "",
-		state: "",
 		website: "",
+		description: "",
+		addressLine1: "",
+		addressLine2: "",
+		city: "",
+		district: "",
+		state: "",
+		country: "India",
+		pincode: "",
 		contactPersonName: "",
 		contactEmail: "",
 		contactPhone: "",
 		recruiterPhone: "",
 		whatsappNumber: "",
-		address: "",
-		pincode: "",
-		description: "",
-		// district seems not in backend schema to be saved, but we can track it in state or use it to populate city
-		district: "",
 	});
 
-	const { checkAuth } = useAuthStore();
+	const { checkAuth, user } = useAuthStore();
+
+	// Normalize saved state to match INDIAN_STATES_DISTRICTS so district lookup works
+	const normalizeState = (stateName: string) => {
+		if (!stateName) return "";
+		const match = INDIAN_STATES_DISTRICTS.find(
+			(s) =>
+				s.state === stateName ||
+				s.state.replace(/\s*\([^)]*\)\s*$/, "").trim() === stateName
+		);
+		return match ? match.state : stateName;
+	};
 
 	useEffect(() => {
 		(async () => {
@@ -69,23 +92,27 @@ export default function EmployerRegisterCompanyPage() {
 				const res = await api.get("/profile/employer").catch(() => null);
 				const profile = res?.data?.payload?.profile ?? res?.data?.profile;
 				if (profile) {
+					const savedState = profile.state || "";
 					setFormData(prev => ({
 						...prev,
 						companyName: profile.companyName || "",
 						brandName: profile.brandName || "",
 						industry: profile.industry || "",
 						companySize: profile.companySize || "",
-						city: profile.city || "",
-						state: profile.state || "",
 						website: profile.website || "",
-						contactPersonName: profile.contactPersonName || "",
-						contactEmail: profile.contactEmail || "",
-						contactPhone: profile.contactPhone || "",
-						recruiterPhone: profile.recruiterPhone || "",
-						whatsappNumber: profile.whatsappNumber || "",
-						address: profile.address || "",
-						pincode: profile.pincode || "",
 						description: profile.description || "",
+						addressLine1: profile.addressLine1 || profile.address || "", // Fallback
+						addressLine2: profile.addressLine2 || "",
+						city: profile.city || "",
+						state: normalizeState(savedState),
+						district: profile.district || "",
+						country: profile.country || "India",
+						pincode: profile.pincode || "",
+						contactPersonName: profile.contactPersonName || prev.contactPersonName || "",
+						contactEmail: profile.contactEmail || prev.contactEmail || user?.email || "",
+						contactPhone: profile.contactPhone || prev.contactPhone || user?.phone || "",
+						recruiterPhone: profile.recruiterPhone || prev.recruiterPhone || "",
+						whatsappNumber: profile.whatsappNumber || prev.whatsappNumber || user?.whatsappNumber || "",
 					}));
 				}
 			} catch (_) {
@@ -96,95 +123,26 @@ export default function EmployerRegisterCompanyPage() {
 		})();
 	}, []);
 
-	// Pincode Lookup Logic
-	const lookupPincode = useCallback(async (pincode: string) => {
-		if (pincode.length !== 6) {
-			setLookupState({ loading: false, error: null, success: false, places: [] });
-			return;
-		}
-
-		if (lastLookedUpPincode.current === pincode) {
-			return;
-		}
-
-		setLookupState({ loading: true, error: null, success: false, places: [] });
-
-		try {
-			const response = await fetch(`https://api.postalpincode.in/pincode/${pincode}`);
-			const result = await response.json();
-
-			if (result[0]?.Status === "Success" && result[0]?.PostOffice?.length > 0) {
-				const postOffice = result[0].PostOffice[0];
-				const places = result[0].PostOffice.map((po: any) => po.Name);
-				
-				lastLookedUpPincode.current = pincode;
-
-				let city = postOffice.Name;
-				if (!city || city === "NA") city = postOffice.Division;
-				if (!city || city === "NA") city = postOffice.District;
-
-				setFormData(prev => ({
-					...prev,
-					pincode,
-					city: city || "",
-					state: postOffice.State || "",
-					district: postOffice.District || "",
-				}));
-
-				setLookupState({
-					loading: false,
-					error: null,
-					success: true,
-					places,
-				});
-			} else {
-				setLookupState({
-					loading: false,
-					error: "Invalid pincode. Please check and try again.",
-					success: false,
-					places: [],
-				});
-			}
-		} catch (error) {
-			setLookupState({
-				loading: false,
-				error: "Could not verify pincode. Please enter address manually.",
-				success: false,
-				places: [],
-			});
-		}
-	}, []);
-
-	useEffect(() => {
-		const pincode = formData.pincode || "";
-		if (pincode.length === 6 && pincode !== lastLookedUpPincode.current) {
-			const timer = setTimeout(() => {
-				lookupPincode(pincode);
-			}, 500);
-			return () => clearTimeout(timer);
-		}
-	}, [formData.pincode, lookupPincode]);
-
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 	) => {
 		const { name, value } = e.target;
-		setFormData((prev) => ({ ...prev, [name]: value }));
+		setFormData((prev) => {
+			const next = { ...prev, [name]: value };
+			if (name === "state") next.district = "";
+			return next;
+		});
 	};
 
 	const handlePincodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const value = e.target.value.replace(/\D/g, "").slice(0, 6);
-		// Reset tracking ref if user manually changes pincode
-		if (value !== lastLookedUpPincode.current) {
-			lastLookedUpPincode.current = null;
-		}
-		
 		setFormData(prev => ({ ...prev, pincode: value }));
-		
-		if (value.length < 6) {
-			setLookupState({ loading: false, error: null, success: false, places: [] });
-		}
 	};
+
+	const districtOptions = useMemo(() => {
+		const stateData = INDIAN_STATES_DISTRICTS.find((s) => s.state === formData.state);
+		return stateData?.districts ?? [];
+	}, [formData.state]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -265,14 +223,20 @@ export default function EmployerRegisterCompanyPage() {
 								<label className="block text-sm font-medium text-[#0F172A] mb-1">
 									Industry *
 								</label>
-								<input
-									type="text"
+								<select
 									name="industry"
 									value={formData.industry}
 									onChange={handleChange}
 									required
-									className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
-								/>
+									className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB] bg-white"
+								>
+									<option value="">Select industry</option>
+									{INDUSTRY_OPTIONS.map((ind) => (
+										<option key={ind} value={ind}>
+											{ind}
+										</option>
+									))}
+								</select>
 							</div>
 							<div>
 								<label className="block text-sm font-medium text-[#0F172A] mb-1">
@@ -293,57 +257,42 @@ export default function EmployerRegisterCompanyPage() {
 								</select>
 							</div>
 						</div>
-
 						{/* Address Section */}
 						<div className="space-y-4 pt-2 border-t border-gray-100">
 							<h3 className="text-sm font-medium text-gray-900">Address Details</h3>
-							
-							{/* Pincode with Auto-lookup */}
+
+							{/* Address Line 1 */}
 							<div>
-								<label className="block text-sm font-medium text-gray-700 mb-1">
-									PIN Code *
+								<label className="block text-sm font-medium text-[#0F172A] mb-1">
+									Address Line 1 *
 								</label>
-								<div className="relative">
-									<Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-									<input
-										type="text"
-										value={formData.pincode}
-										onChange={handlePincodeChange}
-										placeholder="Enter 6 digit PIN code"
-										maxLength={6}
-										className={`w-full pl-10 pr-10 py-2 rounded-lg border transition-all text-sm ${
-											lookupState.error 
-												? "border-red-300 focus:border-red-500 focus:ring-red-100" 
-												: lookupState.success 
-													? "border-green-300 focus:border-green-500 focus:ring-green-100"
-													: "border-gray-200 focus:border-blue-500 focus:ring-blue-100"
-										} focus:ring-2`}
-									/>
-									<div className="absolute right-3 top-1/2 -translate-y-1/2">
-										{lookupState.loading && (
-											<Loader2 size={18} className="text-blue-500 animate-spin" />
-										)}
-										{lookupState.success && (
-											<CheckCircle size={18} className="text-green-500" />
-										)}
-										{lookupState.error && (
-											<AlertCircle size={18} className="text-red-500" />
-										)}
-									</div>
-								</div>
-								{lookupState.success && lookupState.places.length > 0 && (
-									<p className="mt-1.5 text-xs text-green-600">
-										Found: {lookupState.places.slice(0, 3).join(", ")}
-										{lookupState.places.length > 3 && ` +${lookupState.places.length - 3} more`}
-									</p>
-								)}
-								{lookupState.error && (
-									<p className="mt-1.5 text-xs text-red-600">
-										{lookupState.error}
-									</p>
-								)}
+								<input
+									type="text"
+									name="addressLine1"
+									value={formData.addressLine1}
+									onChange={handleChange}
+									required
+									placeholder="House/Flat No, Street, Area..."
+									className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+								/>
 							</div>
 
+							{/* Address Line 2 */}
+							<div>
+								<label className="block text-sm font-medium text-[#0F172A] mb-1">
+									Address Line 2 (optional)
+								</label>
+								<input
+									type="text"
+									name="addressLine2"
+									value={formData.addressLine2}
+									onChange={handleChange}
+									placeholder="Landmark..."
+									className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+								/>
+							</div>
+
+							{/* City & State */}
 							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 								<div>
 									<label className="block text-sm font-medium text-[#0F172A] mb-1">
@@ -357,6 +306,7 @@ export default function EmployerRegisterCompanyPage() {
 											value={formData.city}
 											onChange={handleChange}
 											required
+											placeholder="City / Town"
 											className="w-full pl-10 pr-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
 										/>
 									</div>
@@ -372,29 +322,155 @@ export default function EmployerRegisterCompanyPage() {
 											value={formData.state}
 											onChange={handleChange}
 											required
-											className="w-full pl-10 pr-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB] appearance-none"
+											className="w-full pl-10 pr-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB] appearance-none bg-white"
 										>
 											<option value="">Select State</option>
-											{INDIAN_STATES.map(s => (
-												<option key={s} value={s}>{s}</option>
+											{INDIAN_STATES_DISTRICTS.map((s) => (
+												<option key={s.state} value={s.state}>
+													{s.state}
+												</option>
 											))}
 										</select>
 									</div>
 								</div>
 							</div>
 
+							{/* District & Country */}
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div>
+									<label className="block text-sm font-medium text-[#0F172A] mb-1">
+										District *
+									</label>
+									<select
+										name="district"
+										value={formData.district}
+										onChange={handleChange}
+										required
+										disabled={!formData.state}
+										className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB] bg-white disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+									>
+										<option value="">
+											{formData.state ? "Select District" : "Select State first"}
+										</option>
+										{districtOptions.map((d) => (
+											<option key={d} value={d}>
+												{d}
+											</option>
+										))}
+									</select>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-[#0F172A] mb-1">
+										Country *
+									</label>
+									<input
+										type="text"
+										name="country"
+										value={formData.country}
+										onChange={handleChange}
+										disabled
+										className="w-full px-4 py-2 bg-gray-50 border border-[#E2E8F0] rounded-lg text-[#94A3B8] cursor-not-allowed"
+									/>
+								</div>
+							</div>
+
+							{/* PIN Code */}
+							<div>
+								<label className="block text-sm font-medium text-gray-700 mb-1">
+									PIN Code *
+								</label>
+								<div className="relative">
+									<MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+									<input
+										type="text"
+										value={formData.pincode}
+										onChange={handlePincodeChange}
+										placeholder="Enter 6 digit PIN code"
+										maxLength={6}
+										className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10 text-sm"
+									/>
+								</div>
+							</div>
+						</div>
+
+						{/* Contact Person Section */}
+						<div className="space-y-4 pt-2 border-t border-gray-100">
+							<h3 className="text-sm font-medium text-gray-900">Contact person details</h3>
+							<p className="text-xs text-gray-500">
+								These details will be used by Taraqqi Hub for communication and can be shown on job listings based on your preferences later.
+							</p>
+
 							<div>
 								<label className="block text-sm font-medium text-[#0F172A] mb-1">
-									Full Address
+									Contact person name *
 								</label>
-								<textarea
-									name="address"
-									value={formData.address}
+								<input
+									type="text"
+									name="contactPersonName"
+									value={formData.contactPersonName}
 									onChange={handleChange}
-									rows={2}
-									placeholder="House/Flat No, Street, Area..."
+									required
+									placeholder="Full name of primary contact"
 									className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
 								/>
+							</div>
+
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div>
+									<label className="block text-sm font-medium text-[#0F172A] mb-1">
+										Contact email
+									</label>
+									<input
+										type="email"
+										name="contactEmail"
+										value={formData.contactEmail}
+										onChange={handleChange}
+										placeholder="name@company.com"
+										className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-[#0F172A] mb-1">
+										Contact phone
+									</label>
+									<input
+										type="tel"
+										name="contactPhone"
+										value={formData.contactPhone}
+										onChange={handleChange}
+										placeholder="10-digit mobile number"
+										className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+									/>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div>
+									<label className="block text-sm font-medium text-[#0F172A] mb-1">
+										Recruiter phone (optional)
+									</label>
+									<input
+										type="tel"
+										name="recruiterPhone"
+										value={formData.recruiterPhone}
+										onChange={handleChange}
+										placeholder="Alternate number for candidates"
+										className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium text-[#0F172A] mb-1">
+										WhatsApp number (optional)
+									</label>
+									<input
+										type="tel"
+										name="whatsappNumber"
+										value={formData.whatsappNumber}
+										onChange={handleChange}
+										placeholder="Number where you use WhatsApp"
+										className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+									/>
+								</div>
 							</div>
 						</div>
 
@@ -412,71 +488,6 @@ export default function EmployerRegisterCompanyPage() {
 							/>
 						</div>
 
-						<div>
-							<label className="block text-sm font-medium text-[#0F172A] mb-1">
-								Recruiter / contact phone *
-							</label>
-							<input
-								type="tel"
-								name="recruiterPhone"
-								value={formData.recruiterPhone}
-								onChange={handleChange}
-								className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
-							/>
-						</div>
-						<div>
-							<label className="flex items-center gap-2 text-sm text-[#475569]">
-								<input
-									type="checkbox"
-									checked={!!formData.whatsappNumber}
-									onChange={(e) =>
-										setFormData((prev) => ({
-											...prev,
-											whatsappNumber: e.target.checked
-												? prev.recruiterPhone
-												: "",
-										}))
-									}
-								/>
-								Use same number for WhatsApp
-							</label>
-							{formData.whatsappNumber && (
-								<input
-									type="tel"
-									name="whatsappNumber"
-									value={formData.whatsappNumber}
-									onChange={handleChange}
-									className="mt-2 w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
-									placeholder="WhatsApp number"
-								/>
-							)}
-						</div>
-						<div>
-							<label className="block text-sm font-medium text-[#0F172A] mb-1">
-								Contact person name *
-							</label>
-							<input
-								type="text"
-								name="contactPersonName"
-								value={formData.contactPersonName}
-								onChange={handleChange}
-								required
-								className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
-							/>
-						</div>
-						<div>
-							<label className="block text-sm font-medium text-[#0F172A] mb-1">
-								Contact Email (optional)
-							</label>
-							<input
-								type="email"
-								name="contactEmail"
-								value={formData.contactEmail}
-								onChange={handleChange}
-								placeholder="contact@company.com"
-								className="w-full px-4 py-2 border border-[#E2E8F0] rounded-lg focus:ring-2 focus:ring-[#2563EB]"
-							/>
-						</div>
 						<div>
 							<label className="block text-sm font-medium text-[#0F172A] mb-1">
 								Company description (optional)
@@ -499,8 +510,7 @@ export default function EmployerRegisterCompanyPage() {
 								Back
 							</button>
 							<button
-								type="submit"
-								disabled={saving}
+								disabled={saving || !formData.companyName || !formData.industry || !formData.addressLine1 || !formData.city || !formData.state || !formData.district || !formData.pincode || !formData.contactPersonName}
 								className="flex-1 py-3 bg-[#2563EB] text-white font-semibold rounded-lg hover:bg-[#1E40AF] disabled:opacity-50"
 							>
 								{saving ? "Saving…" : "Save & continue to verification"}

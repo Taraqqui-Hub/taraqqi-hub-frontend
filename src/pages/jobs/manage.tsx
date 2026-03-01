@@ -2,7 +2,7 @@
  * Manage Jobs Page
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -36,10 +36,43 @@ interface Job {
   createdAt: string;
 }
 
+type JobStatusFilter = "all" | "active" | "draft" | "paused" | "closed";
+
 export default function ManageJobsPage() {
   const { t } = useTranslation();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: "pause" | "close" | "resume";
+    job: Job;
+  } | null>(null);
+  const [working, setWorking] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<JobStatusFilter>("all");
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedIds, setArchivedIds] = useState<string[]>([]);
+
+  // Load archived job ids from localStorage (per browser)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("employerArchivedJobIds");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setArchivedIds(parsed.map(String));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const persistArchived = (next: string[]) => {
+    setArchivedIds(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("employerArchivedJobIds", JSON.stringify(next));
+    }
+  };
 
   useEffect(() => {
     loadJobs();
@@ -59,24 +92,30 @@ export default function ManageJobsPage() {
   };
 
   const handleStatusChange = async (jobId: string, newStatus: string) => {
+    setWorking(true);
     try {
       await api.patch(`/employer/jobs/${jobId}`, { status: newStatus });
       loadJobs();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       alert(error.response?.data?.error || t("manageJobs.failedToUpdateStatus"));
+    } finally {
+      setWorking(false);
+      setConfirmAction(null);
     }
   };
 
   const handleDelete = async (jobId: string) => {
-    if (!confirm(t("manageJobs.closeConfirm"))) return;
-
+    setWorking(true);
     try {
       await api.delete(`/employer/jobs/${jobId}`);
       loadJobs();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
       alert(error.response?.data?.error || t("manageJobs.failedToCloseJob"));
+    } finally {
+      setWorking(false);
+      setConfirmAction(null);
     }
   };
 
@@ -92,6 +131,41 @@ export default function ManageJobsPage() {
         return "bg-rose-100 text-rose-700 border-rose-200";
     }
   };
+
+  // Derived list: filter + archive + sort
+  const visibleJobs = useMemo(() => {
+    const statusPriority: Record<string, number> = {
+      active: 0,
+      draft: 1,
+      closed: 2,
+      expired: 2,
+      paused: 3, // "held up" jobs at the bottom
+    };
+
+    const filtered = jobs.filter((job) => {
+      const isArchived = archivedIds.includes(String(job.id));
+      if (isArchived && !showArchived) return false;
+
+      if (statusFilter === "all") return true;
+      return job.status === statusFilter;
+    });
+
+    return filtered.sort((a, b) => {
+      const aIsArchived = archivedIds.includes(String(a.id));
+      const bIsArchived = archivedIds.includes(String(b.id));
+      if (aIsArchived !== bIsArchived) {
+        return aIsArchived ? 1 : -1; // archived always below non-archived
+      }
+
+      const aPr = statusPriority[a.status] ?? 99;
+      const bPr = statusPriority[b.status] ?? 99;
+      if (aPr !== bPr) return aPr - bPr;
+
+      const aDate = new Date(a.publishedAt || a.createdAt).getTime();
+      const bDate = new Date(b.publishedAt || b.createdAt).getTime();
+      return bDate - aDate; // recent on top
+    });
+  }, [jobs, statusFilter, archivedIds, showArchived]);
 
   return (
     <ProtectedRoute allowedUserTypes={["employer"]}>
@@ -113,6 +187,40 @@ export default function ManageJobsPage() {
             </Link>
           </div>
 
+          {/* Filters */}
+          {!loading && jobs.length > 0 && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-600">
+                  {t("manageJobs.filterStatusLabel")}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {(["all", "active", "draft", "paused", "closed"] as JobStatusFilter[]).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setStatusFilter(key)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        statusFilter === key
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {t(`manageJobs.filterStatus.${key}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowArchived((v) => !v)}
+                className="ml-auto px-3 py-1.5 rounded-full text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50"
+              >
+                {showArchived ? t("manageJobs.hideArchived") : t("manageJobs.showArchived")}
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center items-center py-24">
               <div className="relative">
@@ -120,9 +228,11 @@ export default function ManageJobsPage() {
                 <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin"></div>
               </div>
             </div>
-          ) : jobs.length > 0 ? (
+          ) : visibleJobs.length > 0 ? (
             <div className="space-y-4">
-              {jobs.map((job) => (
+              {visibleJobs.map((job) => {
+                const isArchived = archivedIds.includes(String(job.id));
+                return (
                 <div
                   key={job.id}
                   className="group bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 ring-1 ring-slate-900/5"
@@ -195,7 +305,7 @@ export default function ManageJobsPage() {
                       
                       {job.status === "active" && (
                         <button
-                          onClick={() => handleStatusChange(job.id, "paused")}
+                          onClick={() => setConfirmAction({ type: "pause", job })}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                         >
                           <Pause className="w-4 h-4" />
@@ -205,7 +315,7 @@ export default function ManageJobsPage() {
                       
                       {job.status === "paused" && (
                         <button
-                          onClick={() => handleStatusChange(job.id, "active")}
+                          onClick={() => setConfirmAction({ type: "resume", job })}
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                         >
                           <Play className="w-4 h-4" />
@@ -222,16 +332,30 @@ export default function ManageJobsPage() {
                       </Link>
                       
                       <button
-                        onClick={() => handleDelete(job.id)}
+                        onClick={() => setConfirmAction({ type: "close", job })}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                       >
                         <Power className="w-4 h-4" />
                         {t("manageJobs.close")}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idStr = String(job.id);
+                          if (archivedIds.includes(idStr)) {
+                            persistArchived(archivedIds.filter((x) => x !== idStr));
+                          } else {
+                            persistArchived([...archivedIds, idStr]);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-50 rounded-lg border border-slate-200 transition-colors"
+                      >
+                        {isArchived ? t("manageJobs.unarchive") : t("manageJobs.archive")}
+                      </button>
                     </div>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           ) : (
             <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300 shadow-sm">
@@ -249,6 +373,66 @@ export default function ManageJobsPage() {
                 <Plus className="w-5 h-5" />
                 {t("manageJobs.postFirstJob")}
               </Link>
+            </div>
+          )}
+          {confirmAction && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40">
+              <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+                <div className="mb-4">
+                  <h2 className="text-lg font-bold text-slate-900">
+                    {confirmAction.type === "pause"
+                      ? t("manageJobs.pauseModalTitle")
+                      : confirmAction.type === "close"
+                      ? t("manageJobs.closeModalTitle")
+                      : t("manageJobs.resumeModalTitle")}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    {confirmAction.type === "pause"
+                      ? t("manageJobs.pauseModalBody")
+                      : confirmAction.type === "close"
+                      ? t("manageJobs.closeModalBody")
+                      : t("manageJobs.resumeModalBody")}
+                  </p>
+                  <p className="mt-3 text-sm font-medium text-slate-800">
+                    {confirmAction.job.title}
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    disabled={working}
+                    onClick={() => setConfirmAction(null)}
+                    className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {t("manageJobs.modalCancel")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={working}
+                    onClick={() => {
+                      if (!confirmAction) return;
+                      if (confirmAction.type === "close") {
+                        handleDelete(confirmAction.job.id);
+                      } else if (confirmAction.type === "pause") {
+                        handleStatusChange(confirmAction.job.id, "paused");
+                      } else {
+                        handleStatusChange(confirmAction.job.id, "active");
+                      }
+                    }}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50 ${
+                      confirmAction.type === "close"
+                        ? "bg-rose-600 hover:bg-rose-700"
+                        : "bg-indigo-600 hover:bg-indigo-700"
+                    }`}
+                  >
+                    {confirmAction.type === "pause"
+                      ? t("manageJobs.pauseModalConfirm")
+                      : confirmAction.type === "close"
+                      ? t("manageJobs.closeModalConfirm")
+                      : t("manageJobs.resumeModalConfirm")}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

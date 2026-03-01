@@ -104,8 +104,8 @@ export default function VerificationRejectedPage() {
 					{/* Contact support */}
 					<p className="text-[#64748B] text-sm mt-6">
 						Need help? Contact{" "}
-						<a href="mailto:support@taraqqihub.com" className="text-[#2563EB] hover:text-[#1E40AF]">
-							support@taraqqihub.com
+						<a href="mailto:support@equalio.com" className="text-[#2563EB] hover:text-[#1E40AF]">
+							support@equalio.com
 						</a>
 					</p>
 				</div>

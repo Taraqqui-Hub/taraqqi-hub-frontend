@@ -47,7 +47,6 @@ const getNavItems = (userType: string, t: (key: string) => string) => {
 		{ href: "/employer/profile", label: t("nav.companyProfile"), icon: Building2 },
 		{ href: "/jobs/manage", label: t("nav.myJobs"), icon: Briefcase },
 		{ href: "/employer/applicants", label: t("nav.applications"), icon: FileText },
-		{ href: "/employer/billing", label: t("nav.billingInvoices"), icon: Wallet },
 	];
 };
 
@@ -98,14 +97,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 					{!sidebarCollapsed && (
 						<Link href={user.userType === "employer" ? "/employer/dashboard" : "/dashboard"} className="flex items-center gap-2">
 							<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-								<span className="text-white font-bold text-sm">T</span>
+								<span className="text-white font-bold text-sm">E</span>
 							</div>
-							<span className="text-lg font-bold text-slate-800">Taraqqi</span>
+							<span className="text-lg font-bold text-slate-800">Equalio</span>
 						</Link>
 					)}
 					{sidebarCollapsed && (
 						<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center mx-auto">
-							<span className="text-white font-bold text-sm">T</span>
+							<span className="text-white font-bold text-sm">E</span>
 						</div>
 					)}
 				</div>
@@ -205,9 +204,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 						{/* Mobile Logo */}
 						<Link href={user.userType === "employer" ? "/employer/dashboard" : "/dashboard"} className="md:hidden flex items-center gap-2">
 							<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-								<span className="text-white font-bold text-sm">T</span>
+								<span className="text-white font-bold text-sm">E</span>
 							</div>
-							<span className="text-lg font-bold text-slate-800">Taraqqi</span>
+							<span className="text-lg font-bold text-slate-800">Equalio</span>
 						</Link>
 
 						{/* Spacer for desktop */}
@@ -241,9 +240,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 							<div className="h-16 flex items-center justify-between px-4 border-b border-slate-100">
 								<Link href={user.userType === "employer" ? "/employer/dashboard" : "/dashboard"} className="flex items-center gap-2">
 									<div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-										<span className="text-white font-bold text-sm">T</span>
+										<span className="text-white font-bold text-sm">E</span>
 									</div>
-									<span className="text-lg font-bold text-slate-800">Taraqqi</span>
+									<span className="text-lg font-bold text-slate-800">Equalio</span>
 								</Link>
 								<button
 									onClick={() => setMobileMenuOpen(false)}

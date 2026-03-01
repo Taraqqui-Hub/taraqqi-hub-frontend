@@ -16,6 +16,7 @@ export default function EmployerProfilePage() {
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
 	const [hasProfile, setHasProfile] = useState(false);
+	const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
 
 	const [formData, setFormData] = useState({
 		companyName: "",
@@ -27,6 +28,9 @@ export default function EmployerProfilePage() {
 		contactPersonName: "",
 		contactEmail: "",
 		contactPhone: "",
+		whatsappNumber: "",
+		showCallToApplicants: true,
+		showWhatsAppToApplicants: true,
 		address: "",
 		city: "",
 		state: "",
@@ -41,6 +45,13 @@ export default function EmployerProfilePage() {
 	useEffect(() => {
 		loadProfile();
 	}, []);
+
+	// Auto-hide toast after a few seconds
+	useEffect(() => {
+		if (!toast) return;
+		const id = setTimeout(() => setToast(null), 4500);
+		return () => clearTimeout(id);
+	}, [toast]);
 
 	const loadProfile = async () => {
 		try {
@@ -57,6 +68,9 @@ export default function EmployerProfilePage() {
 				contactPersonName: p.contactPersonName || "",
 				contactEmail: p.contactEmail || "",
 				contactPhone: p.contactPhone || "",
+				whatsappNumber: p.whatsappNumber || "",
+				showCallToApplicants: p.showCallToApplicants !== false,
+				showWhatsAppToApplicants: p.showWhatsAppToApplicants !== false,
 				address: p.address || "",
 				city: p.city || "",
 				state: p.state || "",
@@ -69,7 +83,9 @@ export default function EmployerProfilePage() {
 			});
 		} catch (err: any) {
 			if (err.response?.status !== 404) {
-				setError(t("companyProfile.failedToLoadProfile"));
+				const msg = t("companyProfile.failedToLoadProfile");
+				setError(msg);
+				setToast({ type: "error", message: msg });
 			}
 		} finally {
 			setLoading(false);
@@ -81,12 +97,16 @@ export default function EmployerProfilePage() {
 		setSaving(true);
 		setError(null);
 		setSuccess(null);
+		setToast(null);
 
 		try {
 			const data = {
 				...formData,
 				foundedYear: formData.foundedYear ? parseInt(formData.foundedYear) : undefined,
 				benefits: formData.benefits.split(",").map((s) => s.trim()).filter(Boolean),
+				whatsappNumber: formData.whatsappNumber || undefined,
+				showCallToApplicants: formData.showCallToApplicants,
+				showWhatsAppToApplicants: formData.showWhatsAppToApplicants,
 			};
 
 			if (hasProfile) {
@@ -96,9 +116,13 @@ export default function EmployerProfilePage() {
 				setHasProfile(true);
 			}
 
-			setSuccess(t("companyProfile.profileSavedSuccess"));
+			const msg = t("companyProfile.profileSavedSuccess");
+			setSuccess(msg);
+			setToast({ type: "success", message: msg });
 		} catch (err: any) {
-			setError(err.response?.data?.error || t("companyProfile.failedToSaveProfile"));
+			const msg = err.response?.data?.error || t("companyProfile.failedToSaveProfile");
+			setError(msg);
+			setToast({ type: "error", message: msg });
 		} finally {
 			setSaving(false);
 		}
@@ -107,16 +131,42 @@ export default function EmployerProfilePage() {
 	const handleChange = (
 		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
 	) => {
+		const name = e.target.name;
+		const value = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
 		setFormData((prev) => ({
 			...prev,
-			[e.target.name]: e.target.value,
+			[name]: value,
 		}));
 	};
 
 	return (
 		<ProtectedRoute allowedUserTypes={["employer"]}>
 			<DashboardLayout>
-				<div className="max-w-3xl mx-auto">
+				<div className="max-w-3xl mx-auto relative">
+					{/* Inline toast (top-right) so errors/success are visible even when scrolled */}
+					{toast && (
+						<div className="fixed right-4 top-20 z-40 max-w-xs animate-in slide-in-from-top-2 fade-in">
+							<div
+								className={`flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg border text-sm ${
+									toast.type === "error"
+										? "bg-red-50 border-red-200 text-red-800"
+										: "bg-emerald-50 border-emerald-200 text-emerald-800"
+								}`}
+							>
+								<span className="mt-0.5 text-lg">!</span>
+								<div className="flex-1">
+									<p className="font-medium">{toast.message}</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => setToast(null)}
+									className="text-xs text-slate-400 hover:text-slate-600"
+								>
+									✕
+								</button>
+							</div>
+						</div>
+					)}
 					<h1 className="text-2xl font-bold text-[#0F172A] mb-6">{t("companyProfile.title")}</h1>
 
 					{loading ? (
@@ -258,6 +308,31 @@ export default function EmployerProfilePage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">
+											{t("companyProfile.contactPhone")}
+										</label>
+										<input
+											type="tel"
+											name="contactPhone"
+											value={formData.contactPhone}
+											onChange={handleChange}
+											className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+										/>
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-slate-700 mb-1">
+											WhatsApp number
+										</label>
+										<input
+											type="tel"
+											name="whatsappNumber"
+											value={formData.whatsappNumber}
+											onChange={handleChange}
+											placeholder="+91..."
+											className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#2563EB]"
+										/>
+									</div>
+									<div>
+										<label className="block text-sm font-medium text-slate-700 mb-1">
 											{t("companyProfile.city")}
 										</label>
 										<input
@@ -280,6 +355,37 @@ export default function EmployerProfilePage() {
 											className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#2563EB]"
 										/>
 									</div>
+								</div>
+
+								{/* Applicant contact visibility */}
+								<div className="mt-6 pt-6 border-t border-slate-100 space-y-4">
+									<h3 className="text-sm font-semibold text-slate-900">Applicant contact</h3>
+									<label className="flex items-start gap-3 cursor-pointer">
+										<input
+											type="checkbox"
+											name="showCallToApplicants"
+											checked={formData.showCallToApplicants}
+											onChange={handleChange}
+											className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+										/>
+										<div>
+											<span className="text-sm font-medium text-slate-700">{t("companyProfile.showCallToApplicants")}</span>
+											<p className="text-xs text-slate-500 mt-0.5">{t("companyProfile.showCallToApplicantsHint")}</p>
+										</div>
+									</label>
+									<label className="flex items-start gap-3 cursor-pointer">
+										<input
+											type="checkbox"
+											name="showWhatsAppToApplicants"
+											checked={formData.showWhatsAppToApplicants}
+											onChange={handleChange}
+											className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+										/>
+										<div>
+											<span className="text-sm font-medium text-slate-700">{t("companyProfile.showWhatsAppToApplicants")}</span>
+											<p className="text-xs text-slate-500 mt-0.5">{t("companyProfile.showWhatsAppToApplicantsHint")}</p>
+										</div>
+									</label>
 								</div>
 							</div>
 

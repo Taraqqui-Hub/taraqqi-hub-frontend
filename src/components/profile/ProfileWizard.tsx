@@ -140,7 +140,7 @@ export default function ProfileWizard() {
 			const jp = data.profiles?.jobseekerProfile;
 
 			const personalInfo = {
-				fullName: up?.fullName || (jp?.firstName && jp?.lastName ? `${jp.firstName} ${jp.lastName}` : "") || "",
+				fullName: up?.fullName || (jp?.firstName && jp?.lastName ? `${jp.firstName} ${jp.lastName}` : "") || (user?.name ?? "") || "",
 				dateOfBirth: up?.dateOfBirth ? new Date(up.dateOfBirth).toISOString().split("T")[0] :
 					jp?.dateOfBirth ? new Date(jp.dateOfBirth).toISOString().split("T")[0] : "",
 				gender: up?.gender || jp?.gender || "",

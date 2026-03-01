@@ -52,11 +52,15 @@ export default function EmployerRegisterPaymentPage() {
 				simulate: true,
 			});
 			const data = res.data?.payload ?? res.data;
-			if (data.nextStep) {
-				router.push(data.nextStep);
-				return;
+			const nextStep = data.nextStep;
+
+			// Temporarily avoid redirecting employers to the Billing & Invoices page
+			// until backend billing is ready. Default to company profile onboarding.
+			if (nextStep && nextStep !== "/employer/billing") {
+				router.push(nextStep);
+			} else {
+				router.push("/employer/register/company");
 			}
-			router.push("/employer/register/company");
 		} catch (err: any) {
 			setError(
 				err.response?.data?.error || "Payment failed. Please try again."

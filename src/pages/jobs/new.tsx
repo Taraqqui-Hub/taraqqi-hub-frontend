@@ -12,14 +12,16 @@ import {
 	Briefcase, MapPin, FileText, 
 	DollarSign, Users, ArrowRight, 
 	Trophy, Sparkles, AlertCircle, CheckCircle,
-	Building, Map
+	Building, Map, ExternalLink, MessageCircle, Phone
 } from "lucide-react";
 
 // Reuse UI components
 import QuestCard from "@/components/profile/QuestCard";
 import MultiSelect from "@/components/common/MultiSelect";
+import PhoneInput from "@/components/PhoneInput";
 import { INDIAN_STATES_DISTRICTS } from "@/data/indianStatesDistricts";
 import { getFormTypeForCategory, type JobFormType } from "@/data/jobCategoryFormConfig";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/countries";
 
 // Comprehensive Categories List covering all sectors
 const CATEGORIES = [
@@ -208,7 +210,11 @@ const defaultForm = {
 	district: "",
 	state: "",
 	roleSummary: "",
-	workTiming: "", // For simple form: e.g. "9 AM - 6 PM", "Daily wage"
+	// For simple form: structured work timing fields
+	workStartTime: "",
+	workEndTime: "",
+	// Legacy free-text timing (fallback for older jobs)
+	workTiming: "",
 	description: "",
 	responsibilities: "",
 	requirements: "",
@@ -233,6 +239,8 @@ const defaultForm = {
 	autoCloseOnLimit: false,
 	isResumeRequired: false,
 	status: "draft",
+	howToApply: "platform" as "platform" | "direct" | "both" | "external",
+	externalApplyUrl: "",
 };
 
 export default function PostJobPage() {
@@ -242,6 +250,24 @@ export default function PostJobPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [moderationIssues, setModerationIssues] = useState<string[]>([]);
 	const [canPost, setCanPost] = useState<{ allowed: boolean; missingSteps?: string[] } | null>(null);
+
+	// Minimal employer contact info (for direct / both how-to-apply flows)
+	const [contactInfo, setContactInfo] = useState({
+		loaded: false,
+		loading: false,
+		saving: false,
+		error: "",
+		hasProfile: true,
+		contactPhone: "",
+		whatsappNumber: "",
+		phoneCountryCode: DEFAULT_COUNTRY_CODE,
+		whatsappCountryCode: DEFAULT_COUNTRY_CODE,
+		showCallToApplicants: true,
+		showWhatsAppToApplicants: true,
+	});
+
+	// Lightweight inline toast (top-right) so errors/success are visible even when scrolled
+	const [toast, setToast] = useState<{ message: string; type: "error" | "success" } | null>(null);
 
 	// Wizard State
 	const [expandedSection, setExpandedSection] = useState<string | null>("overview");
@@ -282,6 +308,44 @@ export default function PostJobPage() {
 	const isSimple = formType === "simple";
 	const isFull = formType === "full";
 
+	const hasVisibleContact =
+		(contactInfo.showCallToApplicants && contactInfo.contactPhone.trim().length > 0) ||
+		(contactInfo.showWhatsAppToApplicants && contactInfo.whatsappNumber.trim().length > 0);
+
+	const parsePhoneFromProfile = (raw: string | null | undefined) => {
+		const fallbackCode = DEFAULT_COUNTRY_CODE;
+		if (!raw) {
+			return { code: fallbackCode, number: "" };
+		}
+		const trimmed = String(raw).trim();
+		if (trimmed.startsWith("+")) {
+			const withoutPlus = trimmed.slice(1);
+			const match = withoutPlus.match(/^(\d{1,3})(\d*)$/);
+			if (match) {
+				return {
+					code: `+${match[1]}`,
+					number: match[2] ?? "",
+				};
+			}
+		}
+		const digits = trimmed.replace(/\D/g, "");
+		if (!digits) {
+			return { code: fallbackCode, number: "" };
+		}
+		return { code: fallbackCode, number: digits };
+	};
+
+	// For simple (labor/field) jobs, always enforce Full-time + Onsite
+	useEffect(() => {
+		if (isSimple) {
+			setFormData((prev) => ({
+				...prev,
+				jobType: "full-time",
+				locationType: "onsite",
+			}));
+		}
+	}, [isSimple]);
+
 	// Check eligibility
 	useEffect(() => {
 		api.get("/employer/jobs/can-post")
@@ -291,6 +355,159 @@ export default function PostJobPage() {
 			})
 			.catch(() => setCanPost({ allowed: false }));
 	}, []);
+
+	// Load employer contact info once so we can guide direct / both flows
+	useEffect(() => {
+		setContactInfo((prev) => ({ ...prev, loading: true }));
+		api
+			.get("/profile/employer")
+			.then((r) => {
+				const p = r.data?.payload?.profile || r.data?.profile;
+				if (!p) {
+					setContactInfo((prev) => ({
+						...prev,
+						loading: false,
+						loaded: true,
+						hasProfile: false,
+					}));
+					return;
+				}
+				setContactInfo({
+					loaded: true,
+					loading: false,
+					saving: false,
+					error: "",
+					hasProfile: true,
+					...(() => {
+						const parsedPhone = parsePhoneFromProfile(p.contactPhone);
+						const parsedWhatsApp = parsePhoneFromProfile(p.whatsappNumber);
+						return {
+							contactPhone: parsedPhone.number,
+							whatsappNumber: parsedWhatsApp.number,
+							phoneCountryCode: parsedPhone.code,
+							whatsappCountryCode: parsedWhatsApp.code,
+						};
+					})(),
+					showCallToApplicants: p.showCallToApplicants !== false,
+					showWhatsAppToApplicants: p.showWhatsAppToApplicants !== false,
+				});
+			})
+			.catch((err: any) => {
+				if (err.response?.status === 404) {
+					setContactInfo((prev) => ({
+						...prev,
+						loading: false,
+						loaded: true,
+						hasProfile: false,
+					}));
+				} else {
+					setContactInfo((prev) => ({
+						...prev,
+						loading: false,
+						loaded: true,
+						error: "Failed to load company contact details.",
+					}));
+					setToast({
+						type: "error",
+						message: "Failed to load company contact details. You can still post jobs using Apply on platform.",
+					});
+				}
+			});
+	}, []);
+
+	// Auto-hide toast after a few seconds
+	useEffect(() => {
+		if (!toast) return;
+		const id = setTimeout(() => setToast(null), 4500);
+		return () => clearTimeout(id);
+	}, [toast]);
+
+	const handleContactInfoChange = (
+		e: React.ChangeEvent<HTMLInputElement>
+	) => {
+		const { name, type } = e.target;
+		const value =
+			type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
+		setContactInfo((prev) => ({
+			...prev,
+			// @ts-expect-error – narrow keys manually
+			[name]: value,
+		}));
+	};
+
+	const handleSaveContactInfo = async () => {
+		const phoneTrimmed = contactInfo.contactPhone.trim();
+		const waTrimmed = contactInfo.whatsappNumber.trim();
+		const phoneDigits = phoneTrimmed.replace(/\D/g, "");
+		const waDigits = waTrimmed.replace(/\D/g, "");
+
+		if (!phoneDigits && !waDigits) {
+			setContactInfo((prev) => ({
+				...prev,
+				error: "Add at least a phone or WhatsApp number so candidates can contact you.",
+			}));
+			return;
+		}
+
+		if (phoneTrimmed && phoneDigits.length !== 10) {
+			setContactInfo((prev) => ({
+				...prev,
+				error: "Enter a valid 10 digit phone number.",
+			}));
+			return;
+		}
+
+		if (waTrimmed && waDigits.length !== 10) {
+			setContactInfo((prev) => ({
+				...prev,
+				error: "Enter a valid 10 digit WhatsApp number.",
+			}));
+			return;
+		}
+		setContactInfo((prev) => ({ ...prev, saving: true, error: "" }));
+		setToast(null);
+		try {
+			const fullPhone = phoneDigits
+				? `${contactInfo.phoneCountryCode}${phoneDigits}`
+				: null;
+			const fullWhatsApp = waDigits
+				? `${contactInfo.whatsappCountryCode}${waDigits}`
+				: null;
+			await api.patch("/profile/employer", {
+				contactPhone: fullPhone,
+				whatsappNumber: fullWhatsApp,
+				showCallToApplicants: contactInfo.showCallToApplicants,
+				showWhatsAppToApplicants: contactInfo.showWhatsAppToApplicants,
+			});
+			setContactInfo((prev) => ({
+				...prev,
+				saving: false,
+				error: "",
+				hasProfile: true,
+			}));
+			setToast({
+				type: "success",
+				message: "Contact details saved. We’ll show these to candidates for direct contact.",
+			});
+		} catch (err: any) {
+			const status = err.response?.status;
+			let message = "Failed to save contact details.";
+			if (status === 404) {
+				message = "Create your company profile first from the Company Profile page.";
+			} else if (err.response?.data?.message) {
+				message = err.response.data.message;
+			}
+			setContactInfo((prev) => ({
+				...prev,
+				saving: false,
+				error: message,
+			}));
+			setToast({
+				type: "error",
+				message,
+			});
+		}
+	};
 
 	// Handle input changes
 	const handleChange = (
@@ -339,8 +556,13 @@ export default function PostJobPage() {
 
 	const buildPayload = (statusOverride?: string) => {
 		// For simple (labor) jobs: description = what is the work + timing; resume never required
+		const timingText =
+			formData.workStartTime || formData.workEndTime
+				? `Timing: ${formData.workStartTime || "?"} - ${formData.workEndTime || "?"}`
+				: (formData.workTiming?.trim() ? `Timing: ${formData.workTiming.trim()}` : "");
+
 		const description = isSimple
-			? [formData.roleSummary?.trim(), formData.workTiming?.trim() && `Timing: ${formData.workTiming.trim()}`].filter(Boolean).join("\n\n") || formData.description
+			? [formData.roleSummary?.trim(), timingText].filter(Boolean).join("\n\n") || formData.description
 			: formData.description;
 		return {
 			title: formData.title,
@@ -377,12 +599,15 @@ export default function PostJobPage() {
 			autoCloseOnLimit: formData.autoCloseOnLimit,
 			isResumeRequired: isSimple ? false : formData.isResumeRequired,
 			status: statusOverride || formData.status,
+			howToApply: formData.howToApply || "platform",
+			externalApplyUrl: formData.howToApply === "external" && formData.externalApplyUrl?.trim() ? formData.externalApplyUrl.trim() : undefined,
 		};
 	};
 
 	const handleSubmit = async (statusOverride?: string) => {
 		setSaving(true);
 		setError(null);
+		setToast(null);
 		setModerationIssues([]);
 		try {
 			const response = await api.post("/employer/jobs", buildPayload(statusOverride));
@@ -394,7 +619,12 @@ export default function PostJobPage() {
 			const error = err as { response?: { data?: { reason?: { issues?: string[] }, message?: string } } };
 			const errData = error.response?.data;
 			if (errData?.reason?.issues) setModerationIssues(errData.reason.issues);
-			setError(errData?.message || "Failed to create job");
+			const msg = errData?.message || "Failed to create job";
+			setError(msg);
+			setToast({
+				type: "error",
+				message: msg,
+			});
 		} finally {
 			setSaving(false);
 		}
@@ -438,7 +668,31 @@ export default function PostJobPage() {
 	return (
 		<ProtectedRoute allowedUserTypes={["employer"]}>
 			<DashboardLayout>
-				<div className="max-w-3xl mx-auto pb-20">
+				<div className="max-w-3xl mx-auto pb-20 relative">
+					{/* Inline toast (top-right) */}
+					{toast && (
+						<div className="fixed right-4 top-20 z-40 max-w-xs animate-in slide-in-from-top-2 fade-in">
+							<div
+								className={`flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg border text-sm ${
+									toast.type === "error"
+										? "bg-red-50 border-red-200 text-red-800"
+										: "bg-emerald-50 border-emerald-200 text-emerald-800"
+								}`}
+							>
+								<AlertCircle className="w-4 h-4 mt-0.5" />
+								<div className="flex-1">
+									<p className="font-medium">{toast.message}</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => setToast(null)}
+									className="text-xs text-slate-400 hover:text-slate-600"
+								>
+									✕
+								</button>
+							</div>
+						</div>
+					)}
 					<div className="mb-6">
 						<h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-2">Post a New Job</h1>
 						<p className="text-slate-500">Create a compelling job post to attract the best talent.</p>
@@ -510,21 +764,43 @@ export default function PostJobPage() {
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">Employment Type *</label>
-										<select name="jobType" value={formData.jobType} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all">
-											<option value="full-time">Full-time</option>
-											<option value="part-time">Part-time</option>
-											<option value="contract">Contract</option>
-											<option value="internship">Internship</option>
-											<option value="freelance">Freelance</option>
-										</select>
+										{isSimple ? (
+											<div className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 text-sm font-medium">
+												Full-time (fixed for this job type)
+											</div>
+										) : (
+											<select
+												name="jobType"
+												value={formData.jobType}
+												onChange={handleChange}
+												className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+											>
+												<option value="full-time">Full-time</option>
+												<option value="part-time">Part-time</option>
+												<option value="contract">Contract</option>
+												<option value="internship">Internship</option>
+												<option value="freelance">Freelance</option>
+											</select>
+										)}
 									</div>
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">Work Mode *</label>
-										<select name="locationType" value={formData.locationType} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all">
-											<option value="onsite">Onsite</option>
-											<option value="hybrid">Hybrid</option>
-											<option value="remote">Remote</option>
-										</select>
+										{isSimple ? (
+											<div className="w-full px-4 py-2 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 text-sm font-medium">
+												Onsite (field work)
+											</div>
+										) : (
+											<select
+												name="locationType"
+												value={formData.locationType}
+												onChange={handleChange}
+												className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all"
+											>
+												<option value="onsite">Onsite</option>
+												<option value="hybrid">Hybrid</option>
+												<option value="remote">Remote</option>
+											</select>
+										)}
 									</div>
 								</div>
 
@@ -627,6 +903,209 @@ export default function PostJobPage() {
 									</div>
 								</div>
 
+								{/* How do you want to receive responses? */}
+								<div className="pt-6 border-t border-slate-100">
+									<h4 className="text-base font-semibold text-slate-900 mb-1">How do you want to receive responses?</h4>
+									<p className="text-sm text-slate-500 mb-4">Candidates will see this on your job. Choose what works best for you.</p>
+									<div className="grid gap-3 sm:grid-cols-2">
+										<label className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.howToApply === "platform" ? "border-indigo-500 bg-indigo-50/50 shadow-sm" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+											<input type="radio" name="howToApply" value="platform" checked={formData.howToApply === "platform"} onChange={handleChange} className="mt-0.5 shrink-0 text-indigo-600" />
+											<div className="min-w-0">
+												<div className="flex items-center gap-2 font-medium text-slate-900">
+													<Briefcase className="w-4 h-4 text-indigo-600 shrink-0" />
+													Apply on platform
+												</div>
+												<p className="text-xs text-slate-600 mt-1">Candidates apply here. You review them in your dashboard.</p>
+											</div>
+										</label>
+										<label className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.howToApply === "direct" ? "border-indigo-500 bg-indigo-50/50 shadow-sm" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+											<input type="radio" name="howToApply" value="direct" checked={formData.howToApply === "direct"} onChange={handleChange} className="mt-0.5 shrink-0 text-indigo-600" />
+											<div className="min-w-0">
+												<div className="flex items-center gap-2 font-medium text-slate-900">
+													<Phone className="w-4 h-4 text-emerald-600 shrink-0" />
+													Direct contact only
+												</div>
+												<p className="text-xs text-slate-600 mt-1">Candidates call or WhatsApp you. Add phone/WhatsApp below.</p>
+											</div>
+										</label>
+										<label className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.howToApply === "both" ? "border-indigo-500 bg-indigo-50/50 shadow-sm" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+											<input type="radio" name="howToApply" value="both" checked={formData.howToApply === "both"} onChange={handleChange} className="mt-0.5 shrink-0 text-indigo-600" />
+											<div className="min-w-0">
+												<div className="flex items-center gap-2 font-medium text-slate-900">
+													<MessageCircle className="w-4 h-4 text-slate-600 shrink-0" />
+													Both
+												</div>
+												<p className="text-xs text-slate-600 mt-1">Apply here or contact you directly.</p>
+											</div>
+										</label>
+										<label className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${formData.howToApply === "external" ? "border-indigo-500 bg-indigo-50/50 shadow-sm" : "border-slate-200 hover:border-slate-300 bg-white"}`}>
+											<input type="radio" name="howToApply" value="external" checked={formData.howToApply === "external"} onChange={handleChange} className="mt-0.5 shrink-0 text-indigo-600" />
+											<div className="min-w-0">
+												<div className="flex items-center gap-2 font-medium text-slate-900">
+													<ExternalLink className="w-4 h-4 text-amber-600 shrink-0" />
+													Third-party URL
+												</div>
+												<p className="text-xs text-slate-600 mt-1">Redirect to your career page or ATS.</p>
+											</div>
+										</label>
+									</div>
+
+									{formData.howToApply === "external" && (
+										<div className="mt-4 p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2">
+											<label className="block text-sm font-medium text-slate-800">Application URL <span className="text-red-500">*</span></label>
+											<input
+												type="url"
+												name="externalApplyUrl"
+												value={formData.externalApplyUrl}
+												onChange={handleChange}
+												placeholder="https://careers.example.com/apply/..."
+												className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+											/>
+											<p className="text-xs text-slate-500">Candidates will click a button to open this link in a new tab.</p>
+										</div>
+									)}
+
+									{(formData.howToApply === "direct" || formData.howToApply === "both") && (
+										<div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-4 space-y-3">
+											<p className="text-xs font-semibold text-amber-900">
+												To get direct calls or WhatsApp from candidates, we use your company contact details.
+											</p>
+
+											{contactInfo.loading ? (
+												<p className="text-xs text-slate-500">Loading contact details…</p>
+											) : (
+												<>
+													<div className="text-xs text-slate-700 space-y-1">
+														<p className="font-semibold text-slate-900">What candidates will see on this job:</p>
+														{hasVisibleContact ? (
+															<>
+																<ul className="list-disc list-inside space-y-0.5">
+																	{contactInfo.showCallToApplicants && contactInfo.contactPhone.trim().length > 0 && (
+																		<li>
+																			Phone: {contactInfo.phoneCountryCode}
+																			{contactInfo.contactPhone}
+																		</li>
+																	)}
+																	{contactInfo.showWhatsAppToApplicants && contactInfo.whatsappNumber.trim().length > 0 && (
+																		<li>
+																			WhatsApp: {contactInfo.whatsappCountryCode}
+																			{contactInfo.whatsappNumber}
+																		</li>
+																	)}
+																</ul>
+																<p className="text-xs text-slate-500 mt-1">
+																	You can update these contact details below. Changes apply to this and future jobs.
+																</p>
+															</>
+														) : (
+															<p className="text-xs text-amber-800">
+																No phone or WhatsApp is set yet. Add at least one contact below so candidates can reach you directly.
+															</p>
+														)}
+													</div>
+													<div className="grid gap-3 md:grid-cols-2">
+														<div>
+															<label className="block text-xs font-medium text-slate-800 mb-1">
+																Phone number (for calls)
+															</label>
+															<div className="flex rounded-xl border border-slate-200 bg-white focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-[border-color,box-shadow]">
+																<PhoneInput
+																	id="employer-contact-phone"
+																	countryCode={contactInfo.phoneCountryCode}
+																	onCountryChange={(code) =>
+																		setContactInfo((prev) => ({
+																			...prev,
+																			phoneCountryCode: code,
+																		}))
+																	}
+																	value={contactInfo.contactPhone}
+																	onChange={(val) =>
+																		setContactInfo((prev) => ({
+																			...prev,
+																			contactPhone: val,
+																		}))
+																	}
+																	placeholder="10-digit mobile number"
+																	ariaLabel="Phone number for calls"
+																/>
+															</div>
+														</div>
+														<div>
+															<label className="block text-xs font-medium text-slate-800 mb-1">
+																WhatsApp number
+															</label>
+															<div className="flex rounded-xl border border-slate-200 bg-white focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-[border-color,box-shadow]">
+																<PhoneInput
+																	id="employer-contact-whatsapp"
+																	countryCode={contactInfo.whatsappCountryCode}
+																	onCountryChange={(code) =>
+																		setContactInfo((prev) => ({
+																			...prev,
+																			whatsappCountryCode: code,
+																		}))
+																	}
+																	value={contactInfo.whatsappNumber}
+																	onChange={(val) =>
+																		setContactInfo((prev) => ({
+																			...prev,
+																			whatsappNumber: val,
+																		}))
+																	}
+																	placeholder="Number where you use WhatsApp"
+																	ariaLabel="WhatsApp number"
+																/>
+															</div>
+														</div>
+													</div>
+													<div className="flex flex-col gap-1 mt-1">
+														<label className="inline-flex items-center gap-2 text-xs text-slate-700">
+															<input
+																type="checkbox"
+																name="showCallToApplicants"
+																checked={contactInfo.showCallToApplicants}
+																onChange={handleContactInfoChange}
+																className="w-3 h-3 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+															/>
+															<span>Show this phone number to applicants</span>
+														</label>
+														<label className="inline-flex items-center gap-2 text-xs text-slate-700">
+															<input
+																type="checkbox"
+																name="showWhatsAppToApplicants"
+																checked={contactInfo.showWhatsAppToApplicants}
+																onChange={handleContactInfoChange}
+																className="w-3 h-3 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+															/>
+															<span>Show this WhatsApp number to applicants</span>
+														</label>
+													</div>
+													<div className="flex items-center justify-between gap-3 mt-2">
+														<button
+															type="button"
+															onClick={handleSaveContactInfo}
+															disabled={contactInfo.saving}
+															className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+														>
+															{contactInfo.saving ? "Saving…" : "Save contact for this & future jobs"}
+														</button>
+														{!contactInfo.hasProfile && (
+															<a
+																href="/employer/profile"
+																className="text-[11px] text-slate-600 hover:text-slate-900 underline"
+															>
+																Open full Company Profile
+															</a>
+														)}
+													</div>
+													{contactInfo.error && (
+														<p className="mt-1 text-[11px] text-red-600">{contactInfo.error}</p>
+													)}
+												</>
+											)}
+										</div>
+									)}
+								</div>
+
 								<div className="pt-2 flex justify-end">
 									<button 
 										type="button" 
@@ -670,13 +1149,28 @@ export default function PostJobPage() {
 								</div>
 								<div>
 									<label className="block text-sm font-medium text-slate-700 mb-1">Work timing <span className="text-slate-400 text-xs">(Optional)</span></label>
-									<input
-										name="workTiming"
-										value={formData.workTiming}
-										onChange={handleChange}
-										className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500"
-										placeholder="e.g. 9 AM - 6 PM, Daily wage, Flexible"
-									/>
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+										<div>
+											<label className="block text-xs font-medium text-slate-500 mb-1">Start time</label>
+											<input
+												type="time"
+												name="workStartTime"
+												value={formData.workStartTime}
+												onChange={handleChange}
+												className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
+											/>
+										</div>
+										<div>
+											<label className="block text-xs font-medium text-slate-500 mb-1">End time</label>
+											<input
+												type="time"
+												name="workEndTime"
+												value={formData.workEndTime}
+												onChange={handleChange}
+												className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-sm"
+											/>
+										</div>
+									</div>
 								</div>
 								<div className="border-t border-slate-100 pt-4">
 									<h4 className="text-sm font-semibold text-slate-900 mb-3">Pay</h4>
@@ -694,9 +1188,11 @@ export default function PostJobPage() {
 										<div>
 											<label className="block text-sm font-medium text-slate-700 mb-1">Payment frequency</label>
 											<select name="salaryType" value={formData.salaryType} onChange={handleChange} className="px-3 py-2 border border-slate-200 rounded-lg bg-white w-40">
-												<option value="monthly">Monthly</option>
-												<option value="yearly">Yearly</option>
+												<option value="daily">Daily</option>
 												<option value="weekly">Weekly</option>
+												<option value="monthly">Monthly</option>
+												<option value="quarterly">Quarterly</option>
+												<option value="yearly">Yearly</option>
 											</select>
 										</div>
 										<label className="flex items-center gap-2 cursor-pointer">
@@ -757,14 +1253,22 @@ export default function PostJobPage() {
 										</button>
 									</div>
 								</div>
-								<div className="pt-2 flex justify-end">
+								<div className="pt-2 flex justify-end gap-3">
+									<button
+										type="button"
+										disabled={!completedSections.overview}
+										onClick={() => setExpandedSection("preferences")}
+										className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all"
+									>
+										Optional preferences
+									</button>
 									<button
 										type="button"
 										disabled={!validateWorkAndPay()}
-										onClick={() => handleCompleteSection("workAndPay", "preferences")}
+										onClick={() => handleCompleteSection("workAndPay", "preview")}
 										className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 disabled:opacity-50 transition-all flex items-center gap-2"
 									>
-										Next Step <ArrowRight size={18} />
+										Go to review <ArrowRight size={18} />
 									</button>
 								</div>
 							</div>
@@ -880,9 +1384,11 @@ export default function PostJobPage() {
 									<div>
 										<label className="block text-sm font-medium text-slate-700 mb-1">Payment Frequency</label>
 										<select name="salaryType" value={formData.salaryType} onChange={handleChange} className="px-3 py-2 border border-slate-200 rounded-lg bg-white w-40">
-											<option value="monthly">Monthly</option>
-											<option value="yearly">Yearly</option>
+											<option value="daily">Daily</option>
 											<option value="weekly">Weekly</option>
+											<option value="monthly">Monthly</option>
+											<option value="quarterly">Quarterly</option>
+											<option value="yearly">Yearly</option>
 										</select>
 									</div>
 									
@@ -966,14 +1472,22 @@ export default function PostJobPage() {
 									)}
 								</div>
 
-								<div className="pt-2 flex justify-end">
+								<div className="pt-2 flex justify-end gap-3">
+									<button
+										type="button"
+										disabled={!completedSections.details}
+										onClick={() => setExpandedSection("preferences")}
+										className="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all"
+									>
+										Optional preferences
+									</button>
 									<button 
 										type="button" 
 										disabled={!validateCompensation()}
-										onClick={() => handleCompleteSection("compensation", "preferences")}
+										onClick={() => handleCompleteSection("compensation", "preview")}
 										className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 disabled:opacity-50 transition-all flex items-center gap-2"
 									>
-										Next Step <ArrowRight size={18} />
+										Go to review <ArrowRight size={18} />
 									</button>
 								</div>
 							</div>
@@ -1132,8 +1646,15 @@ export default function PostJobPage() {
 							icon={<Trophy size={20} />}
 							showXp={false}
 							completed={false}
-							locked={!completedSections.preferences}
-							hidden={!completedSections.preferences && expandedSection !== "preview"}
+							locked={
+								!completedSections.overview ||
+								(isSimple ? !completedSections.workAndPay : !completedSections.compensation)
+							}
+							hidden={
+								(!completedSections.overview ||
+									(isSimple ? !completedSections.workAndPay : !completedSections.compensation)) &&
+								expandedSection !== "preview"
+							}
 							stepNumber={isSimple ? 4 : 5}
 							totalSteps={totalSteps}
 							expanded={expandedSection === "preview"}

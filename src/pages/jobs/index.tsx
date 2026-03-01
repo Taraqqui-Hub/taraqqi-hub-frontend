@@ -1,32 +1,43 @@
 /**
- * Browse Jobs Page
- * Modern, minimalistic, and intuitive design inspired by LinkedIn/Naukri
+ * Browse Jobs Page — Naukri-inspired, ultra-simple design
+ * Smart matching: shows preferred jobs → area jobs → all jobs (auto-fallback)
  */
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/router";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
+import Head from "next/head";
 import { useTranslation } from "react-i18next";
 import DashboardLayout from "@/components/DashboardLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import {
 	Search,
 	MapPin,
 	Briefcase,
-	DollarSign,
 	Clock,
 	Filter,
 	X,
 	Check,
-	ChevronDown,
 	Building2,
 	Bookmark,
 	Zap,
-	TrendingUp,
 	Star,
 	ArrowRight,
+	ChevronDown,
+	ChevronUp,
+	Target,
+	Globe,
+	Sparkles,
+	RefreshCw,
+	IndianRupee,
+	GraduationCap,
+	Users,
+	TrendingUp,
+	SlidersHorizontal,
 } from "lucide-react";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Job {
 	id: string;
@@ -59,6 +70,8 @@ interface Job {
 	badges: string[];
 }
 
+type MatchMode = "preferred_match" | "area_match" | "all_jobs" | "filtered";
+
 interface Filters {
 	search: string;
 	city: string;
@@ -70,14 +83,273 @@ interface Filters {
 	maxExperience: string;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const compactNumber = (num: number) => {
+	if (num >= 100000) return `${(num / 100000).toFixed(1).replace(/\.0$/, "")}L`;
+	if (num >= 1000) return `${(num / 1000).toFixed(0)}k`;
+	return num.toString();
+};
+
+const formatSalary = (
+	min: string | null,
+	max: string | null,
+	type: string | null,
+	hide: boolean | null
+) => {
+	if (hide) return "Not Disclosed";
+	if (!min && !max) return null;
+	const minVal = min ? parseInt(min) : null;
+	const maxVal = max ? parseInt(max) : null;
+	let unit = "";
+	switch (type) {
+		case "daily": unit = "/day"; break;
+		case "weekly": unit = "/week"; break;
+		case "monthly": unit = "/month"; break;
+		case "yearly": unit = " LPA"; break;
+		default: unit = "";
+	}
+	if (minVal && maxVal) return `₹${compactNumber(minVal)} – ₹${compactNumber(maxVal)}${unit}`;
+	if (minVal) return `₹${compactNumber(minVal)}+${unit}`;
+	if (maxVal) return `Up to ₹${compactNumber(maxVal)}${unit}`;
+	return null;
+};
+
+const formatExp = (min: number | null, max: number | null) => {
+	if (min === 0 && (max === 0 || max === null)) return "Fresher";
+	if (min === null && max === null) return null;
+	if (min !== null && max !== null) return `${min}–${max} yrs`;
+	if (min !== null) return `${min}+ yrs`;
+	return `Up to ${max} yrs`;
+};
+
+const timeAgo = (date: string | null) => {
+	if (!date) return null;
+	const d = new Date(date);
+	const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+	if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+	if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+	if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+	return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+};
+
+const JOB_TYPE_LABELS: Record<string, string> = {
+	"full-time": "Full Time",
+	"part-time": "Part Time",
+	contract: "Contract",
+	internship: "Internship",
+	freelance: "Freelance",
+};
+
+const LOC_TYPE_LABELS: Record<string, string> = {
+	onsite: "On-site",
+	remote: "Remote",
+	hybrid: "Hybrid",
+};
+
+// ─── Match mode banner config ────────────────────────────────────────────────
+
+const matchBannerConfig = {
+	preferred_match: {
+		icon: <Target size={18} className="text-blue-600" />,
+		bg: "bg-blue-50 border-blue-200",
+		titleColor: "text-blue-800",
+		msgColor: "text-blue-700",
+		title: "Jobs matched to your profile",
+		getMessage: (p: any) => {
+			const parts: string[] = [];
+			if (p?.city) parts.push(p.city);
+			if (p?.jobTypes?.length) parts.push(p.jobTypes.join(", "));
+			return parts.length
+				? `Showing jobs for: ${parts.join(" · ")}`
+				: "Based on your profile preferences";
+		},
+	},
+	area_match: {
+		icon: <MapPin size={18} className="text-green-600" />,
+		bg: "bg-green-50 border-green-200",
+		titleColor: "text-green-800",
+		msgColor: "text-green-700",
+		title: "Jobs near you",
+		getMessage: (p: any) =>
+			p?.city || p?.state
+				? `Showing available jobs in ${[p.city, p.state].filter(Boolean).join(", ")}`
+				: "Showing jobs in your area",
+	},
+	all_jobs: {
+		icon: <Globe size={18} className="text-amber-600" />,
+		bg: "bg-amber-50 border-amber-200",
+		titleColor: "text-amber-800",
+		msgColor: "text-amber-700",
+		title: "Explore all jobs",
+		getMessage: () =>
+			"No location preference found — showing all available jobs. Complete your profile to see better matches!",
+	},
+	filtered: null,
+};
+
+// ─── Skeleton Card ────────────────────────────────────────────────────────────
+
+const SkeletonCard = () => (
+	<div className="browse-card animate-pulse">
+		<div className="flex gap-4">
+			<div className="w-14 h-14 bg-slate-200 rounded-xl shrink-0" />
+			<div className="flex-1 space-y-3">
+				<div className="h-5 bg-slate-200 rounded w-2/3" />
+				<div className="h-4 bg-slate-200 rounded w-1/3" />
+				<div className="flex gap-2">
+					<div className="h-6 w-16 bg-slate-200 rounded-full" />
+					<div className="h-6 w-20 bg-slate-200 rounded-full" />
+					<div className="h-6 w-14 bg-slate-200 rounded-full" />
+				</div>
+			</div>
+		</div>
+	</div>
+);
+
+// ─── Job Card ─────────────────────────────────────────────────────────────────
+
+interface JobCardProps {
+	job: Job;
+	onToggleSave: (e: React.MouseEvent, job: Job) => void;
+}
+
+const JobCard = ({ job, onToggleSave }: JobCardProps) => {
+	const salary = formatSalary(job.salaryMin, job.salaryMax, job.salaryType, job.hideSalary);
+	const exp = formatExp(job.minExperienceYears, job.maxExperienceYears);
+	const posted = timeAgo(job.publishedAt);
+
+	return (
+		<div className="browse-card group">
+			{/* Urgent badge */}
+			{job.isUrgentHighlight && (
+				<div className="urgent-badge">
+					<Zap size={10} /> Urgent
+				</div>
+			)}
+
+			<div className="flex gap-3 sm:gap-4 items-start">
+				{/* Company logo */}
+				<div className="company-logo-box shrink-0">
+					<Building2 size={22} className="text-slate-400" />
+				</div>
+
+				{/* Content */}
+				<div className="flex-1 min-w-0">
+					{/* Title row */}
+					<div className="flex items-start justify-between gap-2 mb-0.5">
+						<div className="min-w-0">
+							<Link href={`/jobs/${job.uuid}`} className="block">
+								<h3 className="job-title">{job.title}</h3>
+							</Link>
+							{job.category && (
+								<p className="text-[13px] text-slate-500 font-medium mt-0.5 truncate">
+									{job.category}
+								</p>
+							)}
+						</div>
+						<button
+							onClick={(e) => onToggleSave(e, job)}
+							aria-label={job.isSaved ? "Unsave job" : "Save job"}
+							className={`save-btn shrink-0 ${job.isSaved ? "save-btn--saved" : ""}`}
+						>
+							<Bookmark size={18} fill={job.isSaved ? "currentColor" : "none"} />
+						</button>
+					</div>
+
+					{/* Meta chips */}
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 mb-3">
+						{(job.city || job.state) && (
+							<span className="meta-chip">
+								<MapPin size={13} />
+								{[job.city, job.area].filter(Boolean).join(", ") || job.state}
+							</span>
+						)}
+						{exp && (
+							<span className="meta-chip">
+								<Briefcase size={13} />
+								{exp}
+							</span>
+						)}
+						{salary && (
+							<span className="meta-chip meta-chip--salary">
+								<IndianRupee size={13} />
+								{salary}
+							</span>
+						)}
+						<span className="meta-chip meta-chip--type">
+							{JOB_TYPE_LABELS[job.jobType] || job.jobType}
+						</span>
+						{job.locationType && job.locationType !== "onsite" && (
+							<span className="meta-chip meta-chip--remote">
+								{LOC_TYPE_LABELS[job.locationType] || job.locationType}
+							</span>
+						)}
+					</div>
+
+					{/* Skills */}
+					{job.skillsRequired && job.skillsRequired.length > 0 && (
+						<div className="flex flex-wrap gap-1.5 mb-3">
+							{job.skillsRequired.slice(0, 5).map((s, i) => (
+								<span key={i} className="skill-chip">{s}</span>
+							))}
+							{job.skillsRequired.length > 5 && (
+								<span className="skill-chip text-slate-400">+{job.skillsRequired.length - 5}</span>
+							)}
+						</div>
+					)}
+
+					{/* Footer */}
+					<div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-100">
+						<div className="flex items-center flex-wrap gap-2">
+							{job.hasApplied && (
+								<span className="status-pill status-pill--applied">
+									<Check size={11} /> Applied
+								</span>
+							)}
+							{job.badges.includes("Featured") && (
+								<span className="status-pill status-pill--featured">
+									<Star size={11} /> Featured
+								</span>
+							)}
+							{posted && (
+								<span className="text-xs text-slate-400 flex items-center gap-1">
+									<Clock size={12} /> {posted}
+								</span>
+							)}
+							{(job.applicationsCount ?? 0) > 0 && (
+								<span className="text-xs text-slate-400 flex items-center gap-1">
+									<Users size={12} /> {job.applicationsCount}
+								</span>
+							)}
+						</div>
+						<Link
+							href={`/jobs/${job.uuid}`}
+							className="view-details-link"
+						>
+							View <ArrowRight size={14} className="group-hover/link:translate-x-0.5 transition-transform" />
+						</Link>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+};
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
+
 export default function BrowseJobsPage() {
-	const router = useRouter();
 	const { t } = useTranslation();
+	const { user } = useAuthStore();
+
 	const [jobs, setJobs] = useState<Job[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [showMobileFilters, setShowMobileFilters] = useState(false);
-	
-	// Enhanced filters state
+	const [loadingMore, setLoadingMore] = useState(false);
+	const [matchMode, setMatchMode] = useState<MatchMode>("filtered");
+	const [preferenceProfile, setPreferenceProfile] = useState<any>(null);
+	const [showFilters, setShowFilters] = useState(false);
+	const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+
 	const [filters, setFilters] = useState<Filters>({
 		search: "",
 		city: "",
@@ -91,586 +363,612 @@ export default function BrowseJobsPage() {
 
 	const [pagination, setPagination] = useState({
 		total: 0,
-		limit: 10,
+		limit: 20,
 		offset: 0,
 		hasMore: false,
 	});
 
-	const [suggestedMode, setSuggestedMode] = useState(false);
+	const searchDebounce = useRef<NodeJS.Timeout | null>(null);
+	const didInit = useRef(false);
 
-	// Debounce search
-	const searchTimeout = useRef<NodeJS.Timeout | null>(null);
-	const isInitialMount = useRef(true);
-
-	// Initial load only (single API call on mount)
+	// Count active filters
 	useEffect(() => {
-		loadJobs();
+		const count = filters.jobType.length +
+			filters.locationType.length +
+			(filters.city ? 1 : 0) +
+			(filters.search ? 1 : 0) +
+			(filters.minSalary ? 1 : 0) +
+			(filters.maxSalary ? 1 : 0) +
+			(filters.minExperience ? 1 : 0) +
+			(filters.maxExperience ? 1 : 0);
+		setActiveFiltersCount(count);
+	}, [filters]);
+
+	// Parse response
+	const parseResponse = (data: any): { jobList: Job[]; paginationData: any; matchMode: MatchMode; preferenceProfile: any } => {
+		const payload = data?.payload || data;
+		const jobList: Job[] = payload?.jobs ?? [];
+		const paginationData = payload?.pagination ?? null;
+		const mode: MatchMode = payload?.matchMode ?? "filtered";
+		const prefProfile = payload?.preferenceProfile ?? null;
+		return { jobList, paginationData, matchMode: mode, preferenceProfile: prefProfile };
+	};
+
+	const buildParams = useCallback((f: Filters, offset: number, limit: number) => {
+		const params = new URLSearchParams();
+		if (f.search) params.append("search", f.search);
+		if (f.city) params.append("city", f.city);
+		f.jobType.forEach((t) => params.append("jobType", t));
+		f.locationType.forEach((t) => params.append("locationType", t));
+		if (f.minSalary) params.append("minSalary", f.minSalary);
+		if (f.maxSalary) params.append("maxSalary", f.maxSalary);
+		if (f.minExperience) params.append("minExperience", f.minExperience);
+		if (f.maxExperience) params.append("maxExperience", f.maxExperience);
+		params.append("limit", String(limit));
+		params.append("offset", String(offset));
+		return params;
+	}, []);
+
+	const fetchJobs = useCallback(async (f: Filters, offset: number, reset: boolean) => {
+		try {
+			const params = buildParams(f, offset, pagination.limit);
+			const res = await api.get(`/jobs?${params.toString()}`);
+			return parseResponse(res?.data);
+		} catch {
+			return null;
+		}
+	}, [buildParams, pagination.limit]);
+
+	const loadJobs = useCallback(async (resetJobs = true, overrideFilters?: Partial<Filters>) => {
+		const effective = overrideFilters ? { ...filters, ...overrideFilters } : filters;
+		const offs = resetJobs ? 0 : pagination.offset;
+
+		if (resetJobs) setLoading(true);
+		else setLoadingMore(true);
+
+		const result = await fetchJobs(effective, offs, resetJobs);
+
+		if (result) {
+			setJobs((prev) => resetJobs ? result.jobList : [...prev, ...result.jobList]);
+			if (result.paginationData) {
+				setPagination((prev) => ({
+					...prev,
+					...result.paginationData,
+					offset: offs,
+				}));
+			}
+			setMatchMode(result.matchMode);
+			setPreferenceProfile(result.preferenceProfile);
+		}
+
+		setLoading(false);
+		setLoadingMore(false);
+	}, [filters, pagination.offset, fetchJobs]);
+
+	// Initial load (no explicit filters → smart routing on backend)
+	useEffect(() => {
+		if (didInit.current) return;
+		didInit.current = true;
+		loadJobs(true);
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
-	// Pagination load
+	// Filter change → debounced reload
+	const isFirstFilterRender = useRef(true);
 	useEffect(() => {
-		if (pagination.offset > 0) {
-			loadJobs();
-		}
-	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [pagination.offset]);
-
-	// Debounced filter effect — skip initial mount to avoid double fetch (initial load handled above)
-	useEffect(() => {
-		if (isInitialMount.current) {
-			isInitialMount.current = false;
+		if (isFirstFilterRender.current) {
+			isFirstFilterRender.current = false;
 			return;
 		}
-		if (searchTimeout.current) clearTimeout(searchTimeout.current);
-		searchTimeout.current = setTimeout(() => {
-			setPagination(prev => ({ ...prev, offset: 0 }));
+		if (searchDebounce.current) clearTimeout(searchDebounce.current);
+		searchDebounce.current = setTimeout(() => {
+			setPagination((prev) => ({ ...prev, offset: 0 }));
 			loadJobs(true);
-		}, 600);
+		}, 500);
 		return () => {
-			if (searchTimeout.current) clearTimeout(searchTimeout.current);
+			if (searchDebounce.current) clearTimeout(searchDebounce.current);
 		};
 	// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [filters]);
 
-	const loadJobs = async (reset = false) => {
-		setLoading(true);
-		try {
-			const params = new URLSearchParams();
-			if (filters.search) params.append("search", filters.search);
-			if (filters.city) params.append("city", filters.city);
-			
-			// Handle array filters
-			filters.jobType.forEach(t => params.append("jobType", t));
-			filters.locationType.forEach(t => params.append("locationType", t));
-
-			if (filters.minSalary) params.append("minSalary", filters.minSalary);
-			if (filters.maxSalary) params.append("maxSalary", filters.maxSalary);
-			if (filters.minExperience) params.append("minExperience", filters.minExperience);
-			
-			const currentOffset = reset ? 0 : pagination.offset;
-			params.append("limit", pagination.limit.toString());
-			params.append("offset", currentOffset.toString());
-
-			const response = await api.get(`/jobs?${params.toString()}`);
-			const data = response?.data;
-			
-			if (!data) throw new Error("No data received");
-
-			let jobList: Job[] = [];
-			if (data.payload?.jobs && Array.isArray(data.payload.jobs)) {
-				jobList = data.payload.jobs;
-			} else if (Array.isArray(data.payload)) {
-				jobList = data.payload;
-			} else if (Array.isArray(data.jobs)) {
-				jobList = data.jobs;
+	const loadMore = async () => {
+		const newOffset = pagination.offset + pagination.limit;
+		setPagination((prev) => ({ ...prev, offset: newOffset }));
+		setLoadingMore(true);
+		const result = await fetchJobs(filters, newOffset, false);
+		if (result) {
+			setJobs((prev) => [...prev, ...result.jobList]);
+			if (result.paginationData) {
+				setPagination((prev) => ({
+					...prev,
+					...result.paginationData,
+					offset: newOffset,
+				}));
 			}
-
-			// "Smart" suggestion logic:
-			// If we filtered by city but found 0 results, suggest nearby (simulated by clearing city filter)
-			// Only do this if we are not already in suggested mode and it's a reset search
-			if (jobList.length === 0 && filters.city && !suggestedMode && reset) {
-				setSuggestedMode(true);
-				// Fetch without city
-				const nearbyParams = new URLSearchParams();
-				if (filters.search) nearbyParams.append("search", filters.search);
-				// nearbyParams.delete("city"); // effectively skipping it
-				filters.jobType.forEach(t => nearbyParams.append("jobType", t));
-				filters.locationType.forEach(t => nearbyParams.append("locationType", t));
-								if (filters.minSalary) nearbyParams.append("minSalary", filters.minSalary);
-				if (filters.maxSalary) nearbyParams.append("maxSalary", filters.maxSalary);
-				if (filters.minExperience) nearbyParams.append("minExperience", filters.minExperience);
-
-				nearbyParams.append("limit", pagination.limit.toString());
-				nearbyParams.append("offset", "0");
-
-				const nearbyResponse = await api.get(`/jobs?${nearbyParams.toString()}`);
-				const nearbyData = nearbyResponse?.data;
-				
-				if (nearbyData?.payload?.jobs) {
-					jobList = nearbyData.payload.jobs;
-					setJobs(jobList);
-					const nearbyPagination = nearbyData.payload.pagination;
-					if (nearbyPagination) {
-						setPagination(prev => ({ ...prev, ...nearbyPagination, offset: 0 }));
-					}
-					// Exit early since we handled state
-					setLoading(false);
-					return;
-				}
-			}
-
-			// If we found jobs, or failed to find nearby either
-			if (reset && jobList.length > 0) setSuggestedMode(false);
-			
-			setJobs(prev => reset ? jobList : [...prev, ...jobList]);
-			
-			// Pagination logic
-			const paginationData = data.payload?.pagination || data.pagination;
-			if (paginationData) {
-				setPagination(prev => ({ ...prev, ...paginationData, offset: currentOffset }));
-			}
-		} catch (err) {
-			console.error("Failed to load jobs", err);
-		} finally {
-			setLoading(false);
 		}
+		setLoadingMore(false);
 	};
 
 	const toggleSave = async (e: React.MouseEvent, job: Job) => {
 		e.preventDefault();
 		e.stopPropagation();
-
-		// Optimistic update
 		const wasSaved = job.isSaved;
-		setJobs(prev => prev.map(j => j.id === job.id ? { ...j, isSaved: !wasSaved } : j));
-
+		setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, isSaved: !wasSaved } : j));
 		try {
-			if (wasSaved) {
-				await api.delete(`/saved-jobs/${job.uuid}`);
-			} else {
-				await api.post("/saved-jobs", { jobId: job.uuid });
-			}
-		} catch (error) {
-			console.error("Failed to toggle save", error);
-			// Revert on failure
-			setJobs(prev => prev.map(j => j.id === job.id ? { ...j, isSaved: wasSaved } : j));
+			if (wasSaved) await api.delete(`/saved-jobs/${job.uuid}`);
+			else await api.post("/saved-jobs", { jobId: job.uuid });
+		} catch {
+			setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, isSaved: wasSaved } : j));
 		}
 	};
 
-	const toggleArrayFilter = (key: 'jobType' | 'locationType', value: string) => {
-		setFilters(prev => {
-			const current = prev[key];
-			const updated = current.includes(value)
-				? current.filter(item => item !== value)
-				: [...current, value];
-			return { ...prev, [key]: updated };
+	const toggleArrayFilter = (key: "jobType" | "locationType", value: string) => {
+		setFilters((prev) => {
+			const cur = prev[key];
+			return { ...prev, [key]: cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value] };
 		});
 	};
 
 	const clearFilters = () => {
-		setFilters({
-			search: "",
-			city: "",
-			jobType: [],
-			locationType: [],
-			minSalary: "",
-			maxSalary: "",
-			minExperience: "",
-			maxExperience: "",
-		});
-		setSuggestedMode(false);
+		setFilters({ search: "", city: "", jobType: [], locationType: [], minSalary: "", maxSalary: "", minExperience: "", maxExperience: "" });
 	};
 
-	const formatSalary = (min: string | null, max: string | null, type: string | null, hide: boolean | null) => {
-		if (hide) return t("common.notDisclosed");
-		if (!min && !max) return t("common.notSpecified");
-		const minVal = min ? parseInt(min) : null;
-		const maxVal = max ? parseInt(max) : null;
-		// Determine unit
-		const unit = type === "monthly" ? "/mo" : type === "yearly" ? " LPA" : "";
-		const currency = "₹"; 
+	const bannerConfig = matchMode !== "filtered" ? matchBannerConfig[matchMode] : null;
 
-		if (minVal && maxVal) {
-			return `${currency}${compactNumber(minVal)} - ${currency}${compactNumber(maxVal)}${unit}`;
-		}
-		if (minVal) return `${currency}${compactNumber(minVal)}+${unit}`;
-		if (maxVal) return `${t("common.upTo")} ${currency}${compactNumber(maxVal)}${unit}`;
-		return t("common.notSpecified");
-	};
-
-	// Helper to make large numbers compact (e.g. 500000 -> 5L, 20000 -> 20k)
-	const compactNumber = (num: number) => {
-		if (num >= 100000) return `${(num / 100000).toFixed(1).replace(/\.0$/, '')}L`;
-		if (num >= 1000) return `${(num / 1000).toFixed(0)}k`;
-		return num.toString();
-	};
-
-	const formatExperience = (min: number | null, max: number | null) => {
-		if (min === 0 && (max === 0 || max === null)) return t("common.fresher");
-		if (min === null && max === null) return t("common.expN/A");
-		if (min !== null && max !== null) return `${min}-${max} ${t("common.yrs")}`;
-		if (min !== null) return `${min}+ ${t("common.yrs")}`;
-		return `${t("common.upTo")} ${max} ${t("common.yrs")}`;
-	};
-
-	const jobTypes = [
-		{ id: "full-time", label: t("jobs.fullTime") },
-		{ id: "part-time", label: t("jobs.partTime") },
-		{ id: "contract", label: t("jobs.contract") },
-		{ id: "internship", label: t("jobs.internship") },
-		{ id: "freelance", label: t("jobs.freelance") },
-	];
-
-	const locationTypes = [
-		{ id: "onsite", label: t("jobs.onsite") },
-		{ id: "remote", label: t("jobs.remote") },
-		{ id: "hybrid", label: t("jobs.hybrid") },
-	];
-
+	// ── Render ────────────────────────────────────────────────────────────────
 	return (
 		<ProtectedRoute allowedUserTypes={["jobseeker", "individual"]}>
+			<Head>
+				<title>Browse Jobs – Taraqqi Hub</title>
+				<meta name="description" content="Find jobs near you — matched to your skills and location" />
+			</Head>
 			<DashboardLayout>
-				{/* Modern Header Section */}
-				<div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-					<h1 className="text-2xl font-bold text-slate-900 mb-1">{t("jobs.findDreamJob")}</h1>
-					<p className="text-slate-500 text-sm mb-6">{t("jobs.browseSubtitle")}</p>
-					
-					<div className="flex flex-col md:flex-row gap-3">
-						<div className="flex-1 relative group">
-							<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors h-5 w-5" />
-							<input
-								type="text"
-								placeholder={t("jobs.searchPlaceholder")}
-								value={filters.search}
-								onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-								className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
-							/>
+				<style jsx global>{`
+					/* ── Browse Jobs Design System ── */
+					.browse-card {
+						background: #fff;
+						border: 1px solid #e8eaf0;
+						border-radius: 14px;
+						padding: 18px 20px;
+						position: relative;
+						transition: box-shadow .18s, border-color .18s, transform .12s;
+						cursor: default;
+					}
+					.browse-card:hover {
+						border-color: #c7d2fe;
+						box-shadow: 0 4px 20px rgba(99,102,241,.08);
+						transform: translateY(-1px);
+					}
+					.urgent-badge {
+						position: absolute;
+						top: 0; right: 0;
+						display: flex; align-items: center; gap: 4px;
+						background: #fef2f2; color: #dc2626;
+						font-size: 11px; font-weight: 700;
+						padding: 4px 10px;
+						border-radius: 0 14px 0 10px;
+						border-left: 1px solid #fecaca;
+						border-bottom: 1px solid #fecaca;
+					}
+					.company-logo-box {
+						width: 52px; height: 52px;
+						background: #f8f9fb;
+						border: 1px solid #e8eaf0;
+						border-radius: 12px;
+						display: flex; align-items: center; justify-content: center;
+					}
+					.job-title {
+						font-size: 16px;
+						font-weight: 700;
+						color: #1e293b;
+						line-height: 1.35;
+						display: -webkit-box;
+						-webkit-line-clamp: 2;
+						-webkit-box-orient: vertical;
+						overflow: hidden;
+						transition: color .15s;
+					}
+					.browse-card:hover .job-title {
+						color: #4f46e5;
+					}
+					.save-btn {
+						padding: 7px;
+						border-radius: 50%;
+						border: none;
+						background: transparent;
+						color: #94a3b8;
+						cursor: pointer;
+						transition: background .15s, color .15s;
+						line-height: 0;
+					}
+					.save-btn:hover { background: #eef2ff; color: #4f46e5; }
+					.save-btn--saved { color: #4f46e5; background: #eef2ff; }
+					.meta-chip {
+						display: inline-flex; align-items: center; gap: 4px;
+						font-size: 13px; color: #475569;
+					}
+					.meta-chip--salary { font-weight: 600; color: #1e293b; }
+					.meta-chip--type {
+						background: #f1f5f9; color: #475569;
+						padding: 2px 8px; border-radius: 20px;
+						font-size: 12px; font-weight: 500;
+					}
+					.meta-chip--remote {
+						background: #ecfdf5; color: #059669;
+						padding: 2px 8px; border-radius: 20px;
+						font-size: 12px; font-weight: 500;
+					}
+					.skill-chip {
+						background: #f8f9fb; border: 1px solid #e2e8f0;
+						color: #475569; font-size: 12px; font-weight: 500;
+						padding: 2px 9px; border-radius: 20px;
+						transition: background .15s, border-color .15s;
+					}
+					.browse-card:hover .skill-chip {
+						background: #f0f4ff; border-color: #c7d2fe;
+					}
+					.status-pill {
+						display: inline-flex; align-items: center; gap: 3px;
+						font-size: 11px; font-weight: 700; text-transform: uppercase;
+						letter-spacing: .04em; padding: 2px 7px; border-radius: 6px;
+					}
+					.status-pill--applied { background: #f0fdf4; color: #16a34a; }
+					.status-pill--featured { background: #fffbeb; color: #d97706; }
+					.view-details-link {
+						display: inline-flex; align-items: center; gap: 4px;
+						font-size: 13px; font-weight: 600; color: #4f46e5;
+						text-decoration: none;
+						transition: color .15s;
+					}
+					.view-details-link:hover { color: #4338ca; }
+
+					/* Filter sidebar */
+					.filter-sidebar {
+						background: #fff;
+						border: 1px solid #e8eaf0;
+						border-radius: 14px;
+						padding: 20px;
+					}
+					.filter-section-title {
+						font-size: 13px; font-weight: 700; color: #334155;
+						text-transform: uppercase; letter-spacing: .06em;
+						margin-bottom: 12px;
+					}
+					.filter-chip-btn {
+						display: inline-flex; align-items: center; gap: 5px;
+						padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+						border: 1.5px solid #e2e8f0; background: #fff; color: #475569;
+						cursor: pointer; transition: all .15s;
+					}
+					.filter-chip-btn:hover { border-color: #818cf8; color: #4f46e5; }
+					.filter-chip-btn--active { border-color: #4f46e5; background: #eef2ff; color: #4f46e5; }
+
+					/* Search bar */
+					.search-bar-input {
+						width: 100%; padding: 13px 16px 13px 44px;
+						border: 1.5px solid #e2e8f0; border-radius: 10px;
+						font-size: 15px; background: #fafbfc;
+						transition: border-color .15s, box-shadow .15s;
+						outline: none; color: #1e293b;
+					}
+					.search-bar-input:focus {
+						border-color: #818cf8;
+						box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+						background: #fff;
+					}
+					.search-btn-primary {
+						padding: 13px 28px; background: #4f46e5; color: #fff;
+						border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+						cursor: pointer; transition: background .15s, box-shadow .15s;
+						white-space: nowrap;
+					}
+					.search-btn-primary:hover {
+						background: #4338ca;
+						box-shadow: 0 4px 12px rgba(79,70,229,.25);
+					}
+
+					/* Match Banner */
+					.match-banner {
+						border-radius: 12px; border: 1.5px solid;
+						padding: 14px 18px;
+						display: flex; align-items: flex-start; gap: 12px;
+					}
+
+					/* Load More */
+					.load-more-btn {
+						width: 100%; padding: 14px;
+						border: 1.5px dashed #c7d2fe; border-radius: 12px;
+						background: transparent; color: #4f46e5;
+						font-size: 14px; font-weight: 600;
+						cursor: pointer; transition: background .15s;
+					}
+					.load-more-btn:hover { background: #f0f4ff; }
+					.load-more-btn:disabled { opacity: .6; cursor: not-allowed; }
+				`}</style>
+
+				<div className="max-w-6xl mx-auto px-2 sm:px-0">
+
+					{/* ── Hero Search Bar ─────────────────────────────────────── */}
+					<div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-6 sm:p-8 mb-6 shadow-lg">
+						<div className="mb-5">
+							<h1 className="text-2xl sm:text-3xl font-bold text-white mb-1">
+								ढूंढें अपना काम 💼
+							</h1>
+							<p className="text-indigo-200 text-sm sm:text-base">
+								Find jobs near you — matched to your skills
+							</p>
 						</div>
-						<div className="flex-1 relative group">
-							<MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors h-5 w-5" />
-							<input
-								type="text"
-								placeholder={t("jobs.locationPlaceholder")}
-								value={filters.city}
-								onChange={(e) => setFilters(prev => ({ ...prev, city: e.target.value }))}
-								className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none"
-							/>
+
+						{/* Search Form */}
+						<div className="flex flex-col sm:flex-row gap-3">
+							<div className="flex-1 relative">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+								<input
+									id="browse-search"
+									type="text"
+									placeholder="Job title, skill, or keyword..."
+									value={filters.search}
+									onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+									className="search-bar-input"
+								/>
+							</div>
+							<div className="sm:w-64 relative">
+								<MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+								<input
+									id="browse-city"
+									type="text"
+									placeholder="City or area..."
+									value={filters.city}
+									onChange={(e) => setFilters((p) => ({ ...p, city: e.target.value }))}
+									className="search-bar-input"
+								/>
+							</div>
+							<button
+								id="browse-search-btn"
+								onClick={() => loadJobs(true)}
+								className="search-btn-primary"
+							>
+								<Search size={18} className="inline mr-2" />
+								Search
+							</button>
 						</div>
-						<button 
-							onClick={() => loadJobs(true)}
-							className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-8 py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 whitespace-nowrap"
+					</div>
+
+					{/* ── Quick Filter Chips ──────────────────────────────────── */}
+					<div className="flex flex-wrap items-center gap-2 mb-5">
+						<span className="text-sm font-medium text-slate-500">Quick:</span>
+						{["full-time", "part-time", "contract", "internship"].map((jt) => (
+							<button
+								key={jt}
+								id={`quick-filter-${jt}`}
+								onClick={() => toggleArrayFilter("jobType", jt)}
+								className={`filter-chip-btn ${filters.jobType.includes(jt) ? "filter-chip-btn--active" : ""}`}
+							>
+								{filters.jobType.includes(jt) && <Check size={13} />}
+								{JOB_TYPE_LABELS[jt]}
+							</button>
+						))}
+						{["remote", "onsite"].map((lt) => (
+							<button
+								key={lt}
+								id={`quick-filter-loc-${lt}`}
+								onClick={() => toggleArrayFilter("locationType", lt)}
+								className={`filter-chip-btn ${filters.locationType.includes(lt) ? "filter-chip-btn--active" : ""}`}
+							>
+								{filters.locationType.includes(lt) && <Check size={13} />}
+								{LOC_TYPE_LABELS[lt]}
+							</button>
+						))}
+						<button
+							id="browse-more-filters"
+							onClick={() => setShowFilters((p) => !p)}
+							className={`filter-chip-btn ml-auto ${showFilters ? "filter-chip-btn--active" : ""}`}
 						>
-							{t("jobs.searchJobs")}
+							<SlidersHorizontal size={14} />
+							More filters
+							{activeFiltersCount > 0 && (
+								<span className="bg-indigo-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+									{activeFiltersCount}
+								</span>
+							)}
+							{showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
 						</button>
-					</div>
-				</div>
-
-				<div className="flex flex-col lg:flex-row gap-6 items-start">
-					{/* Mobile Filter Toggle */}
-					<button 
-						onClick={() => setShowMobileFilters(!showMobileFilters)}
-						className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-white border border-slate-200 rounded-xl font-medium text-slate-700"
-					>
-						<span className="flex items-center gap-2"><Filter size={18} /> {t("jobs.filters")}</span>
-						<span className="text-sm bg-slate-100 px-2 py-1 rounded-md">{Object.values(filters).flat().filter(Boolean).length} {t("common.active")}</span>
-					</button>
-
-					{/* Sidebar Filters (Desktop & Mobile Drawer) */}
-					<aside className={`
-						${showMobileFilters ? 'fixed inset-0 z-50 bg-white overflow-y-auto p-4' : 'hidden'} 
-						lg:block lg:w-72 lg:shrink-0
-					`}>
-						{showMobileFilters && (
-							<div className="flex items-center justify-between mb-4 lg:hidden">
-								<h2 className="text-xl font-bold">{t("jobs.filters")}</h2>
-								<button onClick={() => setShowMobileFilters(false)} className="p-2 bg-slate-100 rounded-full"><X size={20} /></button>
-							</div>
+						{activeFiltersCount > 0 && (
+							<button
+								id="browse-clear-filters"
+								onClick={clearFilters}
+								className="text-sm text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+							>
+								<X size={14} /> Clear
+							</button>
 						)}
+					</div>
 
-						<div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-6 lg:sticky lg:top-24">
-							<div className="flex items-center justify-between">
-								<h3 className="font-semibold text-slate-900 flex items-center gap-2">
-									<Filter size={18} className="text-indigo-600" /> {t("jobs.filters")}
-								</h3>
-								<button onClick={clearFilters} className="text-xs font-medium text-slate-500 hover:text-indigo-600">
-									{t("common.clearAll")}
-								</button>
-							</div>
-
-							{/* Job Type */}
-							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.jobType")}</h4>
-								<div className="space-y-2">
-									{jobTypes.map(type => (
-										<label key={type.id} className="flex items-center gap-3 cursor-pointer group">
-											<div className={`
-												w-5 h-5 rounded border flex items-center justify-center transition-colors
-												${filters.jobType.includes(type.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white group-hover:border-indigo-400'}
-											`}>
-												{filters.jobType.includes(type.id) && <Check size={12} className="text-white" />}
-											</div>
-											<input 
-												type="checkbox" 
-												className="hidden" 
-												checked={filters.jobType.includes(type.id)}
-												onChange={() => toggleArrayFilter('jobType', type.id)}
-											/>
-											<span className="text-sm text-slate-600 group-hover:text-slate-900">{type.label}</span>
-										</label>
-									))}
-								</div>
-							</div>
-
-							<hr className="border-slate-100" />
-
-							{/* Work Mode */}
-							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.workMode")}</h4>
-								<div className="space-y-2">
-									{locationTypes.map(type => (
-										<label key={type.id} className="flex items-center gap-3 cursor-pointer group">
-											<div className={`
-												w-5 h-5 rounded border flex items-center justify-center transition-colors
-												${filters.locationType.includes(type.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white group-hover:border-indigo-400'}
-											`}>
-												{filters.locationType.includes(type.id) && <Check size={12} className="text-white" />}
-											</div>
-											<input 
-												type="checkbox" 
-												className="hidden"
-												checked={filters.locationType.includes(type.id)}
-												onChange={() => toggleArrayFilter('locationType', type.id)}
-											/>
-											<span className="text-sm text-slate-600 group-hover:text-slate-900">{type.label}</span>
-										</label>
-									))}
-								</div>
-							</div>
-
-							<hr className="border-slate-100" />
-
-							{/* Experience */}
-							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.experienceYears")}</h4>
-								<div className="flex gap-2">
-									<input
-										type="number"
-										placeholder={t("common.min")}
-										value={filters.minExperience}
-										onChange={(e) => setFilters(prev => ({ ...prev, minExperience: e.target.value }))}
-										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-									/>
-									<span className="text-slate-400 self-center">-</span>
-									<input
-										type="number"
-										placeholder={t("common.max")}
-										value={filters.maxExperience}
-										onChange={(e) => setFilters(prev => ({ ...prev, maxExperience: e.target.value }))}
-										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-									/>
-								</div>
-							</div>
-
-							<hr className="border-slate-100" />
-
-							{/* Salary */}
-							<div className="space-y-3">
-								<h4 className="text-sm font-semibold text-slate-900">{t("jobs.salaryRange")}</h4>
-								<div className="flex flex-col gap-2">
-									<input
-										type="number"
-										placeholder={t("jobs.minAnnualSalary")}
-										value={filters.minSalary}
-										onChange={(e) => setFilters(prev => ({ ...prev, minSalary: e.target.value }))}
-										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-									/>
-									<input
-										type="number"
-										placeholder={t("jobs.maxAnnualSalary")}
-										value={filters.maxSalary}
-										onChange={(e) => setFilters(prev => ({ ...prev, maxSalary: e.target.value }))}
-										className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-									/>
-								</div>
-							</div>
-						</div>
-					</aside>
-
-					{/* Main Feed */}
-					<div className="flex-1 min-w-0 space-y-4">
-						{/* Suggested Mode Banner */}
-						{suggestedMode && (
-							<div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-start gap-3">
-								<MapPin className="text-indigo-600 mt-0.5 shrink-0" size={20} />
+					{/* ── Advanced Filters Panel ────────────────────────────────── */}
+					{showFilters && (
+						<div className="filter-sidebar mb-6">
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+								{/* Salary */}
 								<div>
-									<h4 className="font-semibold text-indigo-900">{t("jobs.expandingSearch")}</h4>
-									<p className="text-sm text-indigo-700 mt-1">
-										{t("jobs.expandingSearchMessage", { city: filters.city })}
-									</p>
+									<p className="filter-section-title">Salary Range (₹)</p>
+									<div className="flex gap-2">
+										<input
+											type="number"
+											placeholder="Min"
+											value={filters.minSalary}
+											onChange={(e) => setFilters((p) => ({ ...p, minSalary: e.target.value }))}
+											className="search-bar-input !pl-3 !py-2 text-sm"
+										/>
+										<input
+											type="number"
+											placeholder="Max"
+											value={filters.maxSalary}
+											onChange={(e) => setFilters((p) => ({ ...p, maxSalary: e.target.value }))}
+											className="search-bar-input !pl-3 !py-2 text-sm"
+										/>
+									</div>
 								</div>
-								<button 
-									onClick={() => {
-										setFilters(prev => ({ ...prev, city: "" }));
-										setSuggestedMode(false);
-										loadJobs(true);
-									}}
-									className="ml-auto text-indigo-600 hover:text-indigo-800"
-								>
-									<X size={18} />
-								</button>
-							</div>
-						)}
-
-						{/* Results Info */}
-						<div className="flex items-center justify-between pb-2">
-							<h2 className="text-slate-700 font-medium">
-								{loading ? t("jobs.searching") : (
-									<>{t("jobs.foundJobs", { count: pagination.total })}</>
-								)}
-							</h2>
-							<div className="flex items-center gap-2 text-sm text-slate-500">
-								<span>{t("common.sortBy")}</span>
-								<select className="bg-transparent border-none font-medium text-slate-900 focus:ring-0 cursor-pointer py-0 pl-1">
-									<option>{t("common.relevance")}</option>
-									<option>{t("common.datePosted")}</option>
-									<option>{t("common.salaryHighToLow")}</option>
-								</select>
+								{/* Experience */}
+								<div>
+									<p className="filter-section-title">Experience (Years)</p>
+									<div className="flex gap-2">
+										<input
+											type="number"
+											placeholder="Min"
+											min="0"
+											value={filters.minExperience}
+											onChange={(e) => setFilters((p) => ({ ...p, minExperience: e.target.value }))}
+											className="search-bar-input !pl-3 !py-2 text-sm"
+										/>
+										<input
+											type="number"
+											placeholder="Max"
+											min="0"
+											value={filters.maxExperience}
+											onChange={(e) => setFilters((p) => ({ ...p, maxExperience: e.target.value }))}
+											className="search-bar-input !pl-3 !py-2 text-sm"
+										/>
+									</div>
+								</div>
+								{/* Job Type */}
+								<div>
+									<p className="filter-section-title">Job Type</p>
+									<div className="flex flex-wrap gap-2">
+										{Object.entries(JOB_TYPE_LABELS).map(([id, label]) => (
+											<button
+												key={id}
+												onClick={() => toggleArrayFilter("jobType", id)}
+												className={`filter-chip-btn !py-1.5 !px-3 !text-xs ${filters.jobType.includes(id) ? "filter-chip-btn--active" : ""}`}
+											>
+												{filters.jobType.includes(id) && <Check size={11} />}
+												{label}
+											</button>
+										))}
+									</div>
+								</div>
+								{/* Work Mode */}
+								<div>
+									<p className="filter-section-title">Work Mode</p>
+									<div className="flex flex-wrap gap-2">
+										{Object.entries(LOC_TYPE_LABELS).map(([id, label]) => (
+											<button
+												key={id}
+												onClick={() => toggleArrayFilter("locationType", id)}
+												className={`filter-chip-btn !py-1.5 !px-3 !text-xs ${filters.locationType.includes(id) ? "filter-chip-btn--active" : ""}`}
+											>
+												{filters.locationType.includes(id) && <Check size={11} />}
+												{label}
+											</button>
+										))}
+									</div>
+								</div>
 							</div>
 						</div>
+					)}
 
-						{/* Job List */}
-						{loading && pagination.offset === 0 ? (
-							<div className="space-y-4">
-								{[1, 2, 3].map(i => (
-									<div key={i} className="bg-white rounded-2xl p-6 border border-slate-200 animate-pulse">
-										<div className="h-6 bg-slate-100 rounded w-2/3 mb-4"></div>
-										<div className="h-4 bg-slate-100 rounded w-1/3 mb-6"></div>
-										<div className="flex gap-4">
-											<div className="h-8 w-20 bg-slate-100 rounded-lg"></div>
-											<div className="h-8 w-20 bg-slate-100 rounded-lg"></div>
-										</div>
-									</div>
-								))}
-							</div>
-						) : jobs.length > 0 ? (
-							<div className="space-y-4">
-								{jobs.map((job) => (
-									<div 
-										key={job.id}
-										className="group bg-white rounded-2xl p-5 border border-slate-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 relative"
-									>
-										{/* Highlight Badge */}
-										{job.isUrgentHighlight && (
-											<div className="absolute top-0 right-0 bg-red-50 text-red-600 text-xs font-bold px-3 py-1 rounded-bl-xl border-l border-b border-red-100 rounded-tr-2xl flex items-center gap-1">
-												<Zap size={10} /> {t("common.urgent")}
-											</div>
-										)}
-										
-										<div className="flex gap-4">
-											{/* Logo Placeholder */}
-											<div className="w-12 h-12 sm:w-16 sm:h-16 bg-white border border-slate-100 rounded-xl flex items-center justify-center shrink-0 shadow-sm p-2">
-												{/* If we had a logo URL, we'd use Next Image here. Fallback to icon. */}
-												<Building2 className="text-slate-400" size={24} />
-											</div>
-
-											<div className="flex-1 min-w-0">
-												<div className="flex justify-between items-start">
-													<div>
-														<Link href={`/jobs/${job.uuid}`} className="block">
-															<h3 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 mb-1">
-																{job.title}
-															</h3>
-														</Link>
-														<p className="text-sm font-medium text-slate-600 mb-2">{job.category || t("common.technologyCompany")}</p>
-													</div>
-													{/* Actions */}
-													<button 
-														onClick={(e) => toggleSave(e, job)}
-														className={`p-2 rounded-full transition-colors ${
-															job.isSaved 
-																? "text-indigo-600 bg-indigo-50 hover:bg-indigo-100" 
-																: "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-														}`}
-													>
-														<Bookmark size={20} fill={job.isSaved ? "currentColor" : "none"} />
-													</button>
-												</div>
-
-												{/* Meta Tags */}
-												<div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs sm:text-sm text-slate-500 mb-4">
-													{job.city && (
-														<span className="flex items-center gap-1">
-															<MapPin size={14} /> {job.city}{job.area ? `, ${job.area}` : ''}
-														</span>
-													)}
-													<span className="flex items-center gap-1">
-														<Briefcase size={14} /> {formatExperience(job.minExperienceYears, job.maxExperienceYears)}
-													</span>
-													{!job.hideSalary && (job.salaryMin || job.salaryMax) && (
-														<span className="flex items-center gap-1 font-medium text-slate-700">
-															<DollarSign size={14} /> {formatSalary(job.salaryMin, job.salaryMax, job.salaryType, job.hideSalary)}
-														</span>
-													)}
-													{job.publishedAt && (
-														<span className="flex items-center gap-1 text-slate-400">
-															<Clock size={14} /> {new Date(job.publishedAt).toLocaleDateString()}
-														</span>
-													)}
-												</div>
-
-												{/* Skills */}
-												{job.skillsRequired && job.skillsRequired.length > 0 && (
-													<div className="flex flex-wrap gap-2 mb-4">
-														{job.skillsRequired.slice(0, 4).map((skill, idx) => (
-															<span key={idx} className="px-2.5 py-1 bg-slate-50 text-slate-600 rounded-lg text-xs font-medium border border-slate-100 group-hover:bg-white group-hover:border-indigo-100 transition-colors">
-																{skill}
-															</span>
-														))}
-														{job.skillsRequired.length > 4 && (
-															<span className="px-2 py-1 text-slate-400 text-xs">+ {job.skillsRequired.length - 4}</span>
-														)}
-													</div>
-												)}
-
-												{/* Footer */}
-												<div className="flex items-center justify-between pt-3 mt-1 border-t border-slate-50">
-													<div className="flex items-center gap-2">
-														{job.hasApplied && (
-															<span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-green-600 bg-green-50 px-2 py-1 rounded-md">
-																<Check size={10} /> {t("common.applied")}
-															</span>
-														)}
-														{job.badges.includes("Featured") && (
-															<span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-																<Star size={10} /> {t("common.featured")}
-															</span>
-														)}
-														<span className="text-xs text-slate-400">
-															{job.applicationsCount || 0} {t("common.applicants")}
-														</span>
-													</div>
-													
-													<Link href={`/jobs/${job.uuid}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 group/link">
-														{t("common.viewDetails")} <ArrowRight size={16} className="transition-transform group-hover/link:translate-x-1" />
-													</Link>
-												</div>
-											</div>
-										</div>
-									</div>
-								))}
-
-								{/* Load More */}
-								{pagination.hasMore && (
-									<button
-										onClick={() => {
-											setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }));
-										}}
-										disabled={loading}
-										className="w-full py-4 text-center text-indigo-600 font-medium hover:bg-indigo-50 rounded-xl transition-colors border border-dashed border-indigo-200 mt-4"
-									>
-										{loading ? t("common.loading") : t("jobs.loadMore")}
-									</button>
-								)}
-							</div>
-						) : (
-							<div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
-								<div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-									<Search className="w-10 h-10 text-slate-300" />
-								</div>
-								<h3 className="text-xl font-bold text-slate-900 mb-2">{t("jobs.noJobsFound")}</h3>
-								<p className="text-slate-500 mb-8 max-w-md mx-auto">
-									{t("jobs.noJobsMessage")}
+					{/* ── Match Mode Banner ────────────────────────────────────── */}
+					{bannerConfig && !loading && jobs.length > 0 && (
+						<div className={`match-banner ${bannerConfig.bg} mb-5`}>
+							<div className="shrink-0 mt-0.5">{bannerConfig.icon}</div>
+							<div className="flex-1 min-w-0">
+								<p className={`font-semibold text-sm ${bannerConfig.titleColor}`}>
+									{bannerConfig.title}
 								</p>
-								<button
-									onClick={clearFilters}
-									className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-shadow shadow-md hover:shadow-lg"
+								<p className={`text-xs mt-0.5 ${bannerConfig.msgColor}`}>
+									{bannerConfig.getMessage(preferenceProfile)}
+								</p>
+							</div>
+							{matchMode === "all_jobs" && (
+								<Link
+									href="/profile"
+									className="shrink-0 text-xs font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900"
 								>
-									{t("jobs.clearAllFilters")}
+									Update Profile →
+								</Link>
+							)}
+						</div>
+					)}
+
+					{/* ── Results Bar ──────────────────────────────────────────── */}
+					{!loading && (
+						<div className="flex items-center justify-between mb-4">
+							<p className="text-sm text-slate-600 font-medium">
+								{pagination.total > 0 ? (
+									<>
+										<span className="font-bold text-slate-800">{pagination.total.toLocaleString()}</span> jobs found
+									</>
+								) : "No jobs found"}
+							</p>
+							{activeFiltersCount > 0 && (
+								<button onClick={clearFilters} className="text-xs text-slate-500 hover:text-indigo-600 flex items-center gap-1">
+									<X size={13} /> Clear filters
+								</button>
+							)}
+						</div>
+					)}
+
+					{/* ── Job List ─────────────────────────────────────────────── */}
+					{loading ? (
+						<div className="space-y-3">
+							{[1, 2, 3, 4, 5].map((i) => <SkeletonCard key={i} />)}
+						</div>
+					) : jobs.length > 0 ? (
+						<div className="space-y-3">
+							{jobs.map((job) => (
+								<JobCard key={job.id} job={job} onToggleSave={toggleSave} />
+							))}
+
+							{/* Load More */}
+							{pagination.hasMore && (
+								<button
+									id="browse-load-more"
+									onClick={loadMore}
+									disabled={loadingMore}
+									className="load-more-btn mt-2"
+								>
+									{loadingMore ? (
+										<span className="flex items-center justify-center gap-2">
+											<RefreshCw size={16} className="animate-spin" /> Loading...
+										</span>
+									) : (
+										<span className="flex items-center justify-center gap-2">
+											Load more jobs <ChevronDown size={16} />
+										</span>
+									)}
+								</button>
+							)}
+						</div>
+					) : (
+						/* ── Empty State ───────────────────────────────────── */
+						<div className="bg-white border border-slate-100 rounded-2xl p-12 text-center">
+							<div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
+								<Briefcase size={36} className="text-indigo-400" />
+							</div>
+							<h3 className="text-xl font-bold text-slate-800 mb-2">
+								कोई काम नहीं मिला
+							</h3>
+							<p className="text-slate-500 text-sm mb-1">No jobs found in your area right now.</p>
+							<p className="text-slate-400 text-sm mb-6">
+								Try removing some filters, or check back later — new jobs are posted daily!
+							</p>
+							<div className="flex flex-wrap justify-center gap-3">
+								<button
+									id="browse-explore-all"
+									onClick={() => { clearFilters(); loadJobs(true); }}
+									className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
+								>
+									Explore all jobs
+								</button>
+								<button
+									id="browse-clear-all"
+									onClick={clearFilters}
+									className="px-6 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
+								>
+									Clear filters
 								</button>
 							</div>
-						)}
-					</div>
+						</div>
+					)}
 				</div>
 			</DashboardLayout>
 		</ProtectedRoute>

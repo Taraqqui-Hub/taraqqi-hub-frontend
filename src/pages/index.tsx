@@ -1,10 +1,10 @@
 /**
- * Landing Page — Taraqqi Hub
+ * Landing Page — Equalio
  * Modern, minimalistic design with solid blue color theme
  */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -159,6 +159,15 @@ const TESTIMONIALS = [
 export default function HomePage() {
 	const { t } = useTranslation();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
+	if (!mounted) {
+		return null; // Avoid rendering until translations load on the client
+	}
 
 	return (
 		<div className="min-h-screen bg-[#F8FAFC]">
@@ -169,10 +178,10 @@ export default function HomePage() {
 						{/* Logo */}
 						<Link href="/" className="flex items-center gap-2 group">
 							<div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center">
-								<span className="text-white font-bold text-sm">T</span>
+								<span className="text-white font-bold text-sm">E</span>
 							</div>
 							<span className="text-lg font-bold text-[#0F172A] group-hover:text-[#2563EB] transition-colors">
-								Taraqqi Hub
+								Equalio
 							</span>
 						</Link>
 
@@ -295,7 +304,7 @@ export default function HomePage() {
 							{t("landing.heroGoal")}
 						</p>
 
-						{/* CTA Buttons */}
+						{/* CTA Buttons — Find Jobs, Hire Talent */}
 						<div className="animate-fade-in-up-delay-4 mt-10 flex flex-col sm:flex-row gap-4 justify-center">
 							<Link
 								href="/jobs"
@@ -308,7 +317,7 @@ export default function HomePage() {
 								href="/register?type=employer"
 								className="inline-flex items-center justify-center px-8 py-4 bg-white text-[#0F172A] font-semibold rounded-xl border border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] transition-all text-base shadow-sm hover:shadow-md"
 							>
-								{t("landing.postAJob")}
+								{t("landing.hireTalent")}
 							</Link>
 						</div>
 					</div>
@@ -540,17 +549,96 @@ export default function HomePage() {
 			</main>
 
 			{/* ─── Footer ─── */}
-			<footer className="bg-white border-t border-[#E2E8F0] py-10">
-				<div className="max-w-6xl mx-auto px-4 sm:px-6">
-					<div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-						<div className="flex items-center gap-2">
-							<div className="w-7 h-7 rounded-md bg-[#2563EB] flex items-center justify-center">
-								<span className="text-white font-bold text-xs">T</span>
-							</div>
-							<span className="text-sm font-bold text-[#0F172A]">Taraqqi Hub</span>
+			<footer className="bg-[#0F172A] text-white">
+				<div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-14">
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 mb-10">
+						{/* Brand column */}
+						<div className="col-span-2 md:col-span-1">
+							<Link href="/" className="flex items-center gap-2 mb-4">
+								<div className="w-8 h-8 rounded-lg bg-[#2563EB] flex items-center justify-center">
+									<span className="text-white font-bold text-sm">E</span>
+								</div>
+								<span className="text-lg font-bold text-white">Equalio</span>
+							</Link>
+							<p className="text-sm text-[#94A3B8] max-w-xs leading-relaxed">
+								Where talent meets opportunity without barriers. Fair, transparent hiring for everyone.
+							</p>
 						</div>
-						<p className="text-xs text-[#94A3B8]">
+						{/* For Job Seekers */}
+						<div>
+							<h3 className="text-sm font-semibold text-white mb-4">
+								{t("landing.footerForJobSeekers")}
+							</h3>
+							<ul className="space-y-3">
+								<li>
+									<Link href="/jobs" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.findJobs")}
+									</Link>
+								</li>
+								<li>
+									<Link href="/register?type=jobseeker" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.footerRegister")}
+									</Link>
+								</li>
+								<li>
+									<a href="#how-it-works" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.footerHowItWorks")}
+									</a>
+								</li>
+							</ul>
+						</div>
+						{/* For Employers */}
+						<div>
+							<h3 className="text-sm font-semibold text-white mb-4">
+								{t("landing.footerForEmployers")}
+							</h3>
+							<ul className="space-y-3">
+								<li>
+									<Link href="/register?type=employer" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.hireTalent")}
+									</Link>
+								</li>
+								<li>
+									<Link href="/register?type=employer" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.postAJob")}
+									</Link>
+								</li>
+							</ul>
+						</div>
+						{/* Company & Help */}
+						<div>
+							<h3 className="text-sm font-semibold text-white mb-4">
+								{t("landing.footerCompany")}
+							</h3>
+							<ul className="space-y-3">
+								<li>
+									<a href="/privacy" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.footerPrivacy")}
+									</a>
+								</li>
+								<li>
+									<a href="/terms" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+										{t("landing.footerTerms")}
+									</a>
+								</li>
+								<li>
+									<span className="text-sm text-[#94A3B8]">
+										{t("landing.footerHelp")}:{" "}
+										<a href="https://wa.me" target="_blank" rel="noopener noreferrer" className="text-[#2563EB] hover:underline font-medium">
+											{t("help.whatsAppUs")}
+										</a>
+									</span>
+								</li>
+							</ul>
+						</div>
+					</div>
+					{/* Bottom bar */}
+					<div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+						<p className="text-xs text-[#64748B]">
 							{t("landing.copyright", { year: new Date().getFullYear() })}
+						</p>
+						<p className="text-xs text-[#64748B]">
+							{t("landing.trustFooter")}
 						</p>
 					</div>
 				</div>

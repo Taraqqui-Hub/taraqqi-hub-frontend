@@ -81,7 +81,7 @@ export default function LoginPage() {
 				</div>
 				{/* Logo / Brand */}
 				<div className="text-center mb-6 sm:mb-8">
-					<h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] mb-1 sm:mb-2">Taraqqi Hub</h1>
+					<h1 className="text-2xl sm:text-3xl font-bold text-[#0F172A] mb-1 sm:mb-2">Equalio</h1>
 					<p className="text-sm sm:text-base text-[#475569]">{t("auth.tagline")}</p>
 				</div>
 

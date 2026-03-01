@@ -11,17 +11,34 @@ const LOCALE_STORAGE_KEY = "taraqqi-locale";
 export default function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const currentLocale = (i18n.language?.startsWith("hi") ? "hi" : "en") as Locale;
 
   useEffect(() => {
+    setMounted(true);
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  if (!mounted) {
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors text-sm font-medium"
+          aria-label="Switch language"
+        >
+          <Globe className="w-4 h-4 text-slate-500" />
+          <span className="hidden sm:inline">English</span>
+        </button>
+      </div>
+    );
+  }
 
   const setLocale = (lng: Locale) => {
     i18n.changeLanguage(lng);

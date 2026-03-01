@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { preferencesApi } from "@/lib/api";
+import { Briefcase, Clock, Wrench, Users } from "lucide-react";
 
 export default function IntentPage() {
 	const { t } = useTranslation();
@@ -53,66 +54,102 @@ export default function IntentPage() {
 	};
 
     const options = [
-        { id: "job_search", label: t("onboarding.intent.jobNow") },
-        { id: "passive", label: t("onboarding.intent.futureOpportunities") },
-        { id: "skills", label: t("onboarding.intent.skillPrograms") },
-        { id: "community", label: t("onboarding.intent.communityUpdates") },
+        { id: "job_search", label: t("onboarding.intent.jobNow"), icon: Briefcase },
+        { id: "passive", label: t("onboarding.intent.futureOpportunities"), icon: Clock },
+        { id: "skills", label: t("onboarding.intent.skillPrograms"), icon: Wrench },
+        { id: "community", label: t("onboarding.intent.communityUpdates"), icon: Users },
     ];
 
 	return (
 		<ProtectedRoute allowedUserTypes={["individual"]}>
-			<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
-				<div className="w-full max-w-md">
-                     <div className="mb-6">
-                        <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-600 w-2/3"></div>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2 text-right">{t("onboarding.intent.step")}</p>
-                    </div>
+			<div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12 sm:py-16">
+				<div className="w-full max-w-[500px]">
+					{/* Minimal progress — same as Step 1 (contact) */}
+					<div className="flex items-center justify-end gap-2 mb-8">
+						<div className="flex gap-1">
+							<span className="w-2 h-2 rounded-full bg-neutral-200" aria-hidden />
+							<span className="w-2 h-2 rounded-full bg-neutral-900" aria-hidden />
+							<span className="w-2 h-2 rounded-full bg-neutral-200" aria-hidden />
+						</div>
+						<span className="text-xs text-neutral-400 tabular-nums">
+							{t("onboarding.intent.step")}
+						</span>
+					</div>
 
-					<div className="bg-white rounded-lg p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
-						<h2 className="text-xl font-bold text-[#0F172A] mb-2">{t("onboarding.intent.title")}</h2>
-						<p className="text-[#475569] text-sm mb-6">
+					{/* Card — same style as Step 1 */}
+					<div className="bg-white rounded-2xl px-6 py-8 sm:px-8 sm:py-10 shadow-none border border-neutral-100">
+						<h1 className="text-2xl font-semibold text-neutral-900 tracking-tight mb-1.5">
+							{t("onboarding.intent.title")}
+						</h1>
+						<p className="text-sm text-neutral-500 leading-relaxed mb-8">
 							{t("onboarding.intent.subtitle")}
 						</p>
 
 						<div className="space-y-3 mb-8">
-                            {options.map((opt) => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => toggleIntent(opt.id)}
-                                    className={`w-full text-left p-4 rounded-lg border transition ${
-                                        intents.includes(opt.id)
-                                            ? "border-blue-600 bg-blue-50 text-blue-700"
-                                            : "border-gray-200 hover:border-blue-300 text-slate-700"
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 ${
-                                            intents.includes(opt.id) ? "bg-blue-600 border-blue-600" : "border-gray-300"
-                                        }`}>
-                                            {intents.includes(opt.id) && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="font-medium text-sm">{opt.label}</span>
-                                    </div>
-                                </button>
-                            ))}
+							{options.map((opt) => {
+								const Icon = opt.icon;
+								return (
+									<button
+										key={opt.id}
+										type="button"
+										onClick={() => toggleIntent(opt.id)}
+										className={`w-full text-left p-4 rounded-xl border transition-colors ${
+											intents.includes(opt.id)
+												? "border-neutral-900 bg-neutral-50 text-neutral-900"
+												: "border-neutral-200 hover:border-neutral-300 text-neutral-700"
+										}`}
+									>
+										<div className="flex items-center gap-3">
+											<div
+												className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+													intents.includes(opt.id)
+														? "bg-neutral-900 text-white"
+														: "bg-neutral-100 text-neutral-600"
+												}`}
+											>
+												<Icon className="w-5 h-5" />
+											</div>
+											<div
+												className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
+													intents.includes(opt.id)
+														? "bg-neutral-900 border-neutral-900"
+														: "border-neutral-300"
+												}`}
+											>
+												{intents.includes(opt.id) && (
+													<svg
+														className="w-3 h-3 text-white"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth={3}
+															d="M5 13l4 4L19 7"
+														/>
+													</svg>
+												)}
+											</div>
+											<span className="font-medium text-sm">{opt.label}</span>
+										</div>
+									</button>
+								);
+							})}
 						</div>
 
 						{error && (
-							<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-4 text-sm">
+							<div className="rounded-lg bg-red-50 text-red-700 px-4 py-3 text-sm mb-6 border border-red-100">
 								{error}
 							</div>
 						)}
 
 						<button
+							type="button"
 							onClick={handleSubmit}
 							disabled={saving}
-							className="w-full py-3 px-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md shadow-sm transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+							className="w-full py-3.5 px-4 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 						>
 							{saving ? t("onboarding.intent.saving") : t("onboarding.intent.continue")}
 						</button>

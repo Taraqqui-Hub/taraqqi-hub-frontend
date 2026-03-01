@@ -79,7 +79,9 @@ export default function MultiSelect({
 	const handleSelect = useCallback(
 		(value: string) => {
 			if (singleSelect) {
-				onChange([value]);
+				const isAlreadySelected = selected.includes(value);
+				// In single-select mode, allow toggling off by tapping the same option
+				onChange(isAlreadySelected ? [] : [value]);
 				setIsOpen(false);
 				setSearchQuery("");
 			} else {
@@ -138,15 +140,13 @@ export default function MultiSelect({
 								className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-sm rounded-full"
 							>
 								{label}
-								{!singleSelect && (
-									<button
-										type="button"
-										onClick={(e) => handleRemove(selected[idx], e)}
-										className="hover:bg-blue-200 rounded-full p-0.5"
-									>
-										<X size={12} />
-									</button>
-								)}
+								<button
+									type="button"
+									onClick={(e) => handleRemove(selected[idx], e)}
+									className="hover:bg-blue-200 rounded-full p-0.5"
+								>
+									<X size={12} />
+								</button>
 							</span>
 						))}
 						{selected.length > maxDisplayChips && (
@@ -161,7 +161,7 @@ export default function MultiSelect({
 
 				{/* Clear & Chevron */}
 				<div className="flex items-center gap-1">
-					{selected.length > 0 && !singleSelect && (
+					{selected.length > 0 && (
 						<button
 							type="button"
 							onClick={handleClearAll}

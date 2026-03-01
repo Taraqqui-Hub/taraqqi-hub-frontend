@@ -8,22 +8,8 @@ import { useRouter } from "next/router";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "@/store/authStore";
 import ProtectedRoute from "@/components/ProtectedRoute";
-
-const DEFAULT_COUNTRY_CODE = "+91";
-const COUNTRY_CODES = [
-	{ code: "+91", label: "India (+91)" },
-	{ code: "+1", label: "US/Canada (+1)" },
-	{ code: "+44", label: "UK (+44)" },
-	{ code: "+92", label: "Pakistan (+92)" },
-	{ code: "+971", label: "UAE (+971)" },
-	{ code: "+966", label: "Saudi (+966)" },
-	{ code: "+61", label: "Australia (+61)" },
-	{ code: "+81", label: "Japan (+81)" },
-	{ code: "+86", label: "China (+86)" },
-	{ code: "+33", label: "France (+33)" },
-	{ code: "+49", label: "Germany (+49)" },
-	{ code: "+65", label: "Singapore (+65)" },
-];
+import PhoneInput from "@/components/PhoneInput";
+import { DEFAULT_COUNTRY_CODE } from "@/lib/countries";
 
 export default function ContactDetailsPage() {
 	const { t } = useTranslation();
@@ -91,123 +77,107 @@ export default function ContactDetailsPage() {
 
 	return (
 		<ProtectedRoute allowedUserTypes={["individual", "employer"]}>
-			<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
-				<div className="w-full max-w-md">
-					<div className="mb-6">
-						<div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
-							<div className="h-full bg-blue-600 w-1/3" />
+			<div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4 py-12 sm:py-16">
+				<div className="w-full max-w-[500px]">
+					{/* Minimal progress */}
+					<div className="flex items-center justify-end gap-2 mb-8">
+						<div className="flex gap-1">
+							<span className="w-2 h-2 rounded-full bg-neutral-900" aria-hidden />
+							<span className="w-2 h-2 rounded-full bg-neutral-200" aria-hidden />
+							<span className="w-2 h-2 rounded-full bg-neutral-200" aria-hidden />
 						</div>
-						<p className="text-xs text-gray-500 mt-2 text-right">
+						<span className="text-xs text-neutral-400 tabular-nums">
 							{t("onboarding.contact.step")}
-						</p>
+						</span>
 					</div>
 
-					<div className="bg-white rounded-xl p-6 sm:p-8 shadow-sm border border-[#E2E8F0]">
-						<h2 className="text-xl font-bold text-[#0F172A] mb-2">
+					{/* Card — flat, minimal */}
+					<div className="bg-white rounded-2xl px-6 py-8 sm:px-8 sm:py-10 shadow-none border border-neutral-100">
+						<h1 className="text-2xl font-semibold text-neutral-900 tracking-tight mb-1.5">
 							{t("onboarding.contact.title")}
-						</h2>
-						<p className="text-[#475569] text-sm mb-6">
+						</h1>
+						<p className="text-sm text-neutral-500 leading-relaxed mb-8">
 							{t("onboarding.contact.subtitle")}
 						</p>
 
 						{error && (
-							<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6 text-sm">
+							<div className="rounded-lg bg-red-50 text-red-700 px-4 py-3 text-sm mb-6 border border-red-100">
 								{error}
 							</div>
 						)}
 
-						<form onSubmit={handleSubmit}>
-							<div className="mb-4">
+						<form onSubmit={handleSubmit} className="space-y-6">
+							{/* Mobile */}
+							<div>
 								<label
 									htmlFor="phone"
-									className="block text-sm font-medium text-[#0F172A] mb-2"
+									className="block text-sm font-medium text-neutral-700 mb-1.5"
 								>
-									{t("onboarding.contact.mobileNumber")} <span className="text-red-500">*</span>
+									{t("onboarding.contact.mobileNumber")}{" "}
+									<span className="text-red-500" aria-hidden>*</span>
 								</label>
-								<div className="flex rounded-md border border-[#E2E8F0] overflow-hidden focus-within:ring-2 focus-within:ring-[#2563EB] focus-within:border-transparent">
-									<select
-										value={countryCode}
-										onChange={(e) => setCountryCode(e.target.value)}
-										className="px-3 py-3 bg-[#F8FAFC] border-r border-[#E2E8F0] text-[#0F172A] text-sm font-medium focus:outline-none min-w-[110px]"
-										aria-label="Country code"
-									>
-										{COUNTRY_CODES.map(({ code, label }) => (
-											<option key={code} value={code}>
-												{label}
-											</option>
-										))}
-									</select>
-									<input
-										type="tel"
+								<div className="flex rounded-xl border border-neutral-200 bg-white focus-within:border-neutral-400 focus-within:ring-1 focus-within:ring-neutral-400 transition-[border-color,box-shadow]">
+									<PhoneInput
 										id="phone"
+										countryCode={countryCode}
+										onCountryChange={setCountryCode}
 										value={phoneNumber}
-										onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 15))}
+										onChange={setPhoneNumber}
 										placeholder={t("onboarding.contact.placeholderPhone")}
-										className="flex-1 px-4 py-3 text-[#0F172A] placeholder-[#94A3B8] focus:outline-none min-w-0"
-										autoComplete="tel-national"
+										ariaLabel={t("onboarding.contact.mobileNumber")}
 									/>
 								</div>
 								{fieldErrors.phone && (
-									<p className="text-xs text-red-600 mt-1">{fieldErrors.phone}</p>
+									<p className="text-xs text-red-600 mt-1.5">{fieldErrors.phone}</p>
 								)}
-								<p className="text-xs text-[#64748B] mt-1">{t("onboarding.contact.formatHint")}</p>
+								<p className="text-xs text-neutral-400 mt-1.5">
+									{t("onboarding.contact.formatHint")}
+								</p>
 							</div>
 
-							<div className="mb-6">
-								<div className="flex items-center justify-between mb-2">
-									<label htmlFor="whatsapp" className="block text-sm font-medium text-[#0F172A]">
+							{/* WhatsApp */}
+							<div>
+								<div className="flex items-center justify-between mb-1.5">
+									<label htmlFor="whatsapp" className="text-sm font-medium text-neutral-700">
 										{t("onboarding.contact.whatsappNumber")}
 									</label>
-									<label className="flex items-center text-xs text-[#64748B] cursor-pointer">
+									<label className="flex items-center gap-2 text-xs text-neutral-500 cursor-pointer select-none">
 										<input
 											type="checkbox"
 											checked={sameAsMobile}
 											onChange={(e) => handleSameAsMobileChange(e.target.checked)}
-											className="mr-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+											className="w-3.5 h-3.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-400 focus:ring-offset-0"
 										/>
 										{t("onboarding.contact.sameAsMobile")}
 									</label>
 								</div>
-								<div className="flex rounded-md border border-[#E2E8F0] overflow-hidden focus-within:ring-2 focus-within:ring-[#2563EB] focus-within:border-transparent">
-									<select
-										value={whatsappCountryCode}
-										onChange={(e) => {
-											setWhatsappCountryCode(e.target.value);
+								<div className="flex rounded-xl border border-neutral-200 bg-white focus-within:border-neutral-400 focus-within:ring-1 focus-within:ring-neutral-400 transition-[border-color,box-shadow] [&:has(:disabled)]:opacity-60 [&:has(:disabled)]:bg-neutral-50">
+									<PhoneInput
+										id="whatsapp"
+										countryCode={whatsappCountryCode}
+										onCountryChange={(code) => {
+											setWhatsappCountryCode(code);
 											setSameAsMobile(false);
 										}}
-										disabled={sameAsMobile}
-										className="px-3 py-3 bg-[#F8FAFC] border-r border-[#E2E8F0] text-[#0F172A] text-sm font-medium focus:outline-none min-w-[110px] disabled:opacity-70"
-										aria-label="WhatsApp country code"
-									>
-										{COUNTRY_CODES.map(({ code, label }) => (
-											<option key={code} value={code}>
-												{label}
-											</option>
-										))}
-									</select>
-									<input
-										type="tel"
-										id="whatsapp"
 										value={whatsappNumber}
-										onChange={(e) => {
-											setWhatsappNumber(e.target.value.replace(/\D/g, "").slice(0, 15));
+										onChange={(v) => {
+											setWhatsappNumber(v);
 											setSameAsMobile(false);
 										}}
 										placeholder={t("onboarding.contact.placeholderPhone")}
 										disabled={sameAsMobile}
-										className="flex-1 px-4 py-3 text-[#0F172A] placeholder-[#94A3B8] focus:outline-none min-w-0 disabled:opacity-70"
-										autoComplete="tel-national"
+										ariaLabel={t("onboarding.contact.whatsappNumber")}
 									/>
 								</div>
 								{fieldErrors.whatsapp && (
-									<p className="text-xs text-red-600 mt-1">{fieldErrors.whatsapp}</p>
+									<p className="text-xs text-red-600 mt-1.5">{fieldErrors.whatsapp}</p>
 								)}
 							</div>
 
 							<button
 								type="submit"
 								disabled={isLoading || !phoneNumber.trim()}
-								className="w-full py-3 px-4 bg-[#2563EB] hover:bg-[#1E40AF] text-white font-semibold rounded-md shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+								className="w-full py-3.5 px-4 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
 							>
 								{isLoading ? t("onboarding.contact.saving") : t("onboarding.contact.continue")}
 							</button>

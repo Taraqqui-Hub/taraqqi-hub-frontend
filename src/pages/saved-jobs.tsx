@@ -98,7 +98,27 @@ export default function SavedJobsPage() {
 		if (!min && !max) return t("common.notSpecified");
 		const minVal = min ? parseInt(min) : null;
 		const maxVal = max ? parseInt(max) : null;
-		const unit = type === "monthly" ? "/mo" : type === "yearly" ? " LPA" : "";
+
+		let unit = "";
+		switch (type) {
+			case "daily":
+				unit = "/day";
+				break;
+			case "weekly":
+				unit = "/week";
+				break;
+			case "monthly":
+				unit = "/mo";
+				break;
+			case "quarterly":
+				unit = "/quarter";
+				break;
+			case "yearly":
+				unit = " LPA";
+				break;
+			default:
+				unit = "";
+		}
 		const currency = "₹";
 
 		if (minVal && maxVal) {
