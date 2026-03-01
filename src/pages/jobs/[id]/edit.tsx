@@ -411,7 +411,11 @@ export default function EditJobPage() {
                         autoCloseOnLimit: job.autoCloseOnLimit || false,
                         isResumeRequired: job.isResumeRequired || false,
                         status: job.status || "draft",
-                        howToApply: (job as { howToApply?: string }).howToApply || "platform",
+                        howToApply: (() => {
+                            const raw = (job as { howToApply?: string }).howToApply;
+                            if (raw === "direct" || raw === "both" || raw === "external") return raw;
+                            return "platform";
+                        })(),
                         externalApplyUrl: (job as { externalApplyUrl?: string }).externalApplyUrl || "",
                     });
                      // Set all sections to completed so user can jump around
@@ -497,7 +501,6 @@ export default function EditJobPage() {
 			type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
 		setContactInfo((prev) => ({
 			...prev,
-			// @ts-expect-error – narrow keys manually
 			[name]: value,
 		}));
 	};

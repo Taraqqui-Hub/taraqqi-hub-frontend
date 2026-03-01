@@ -430,7 +430,6 @@ export default function PostJobPage() {
 			type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
 		setContactInfo((prev) => ({
 			...prev,
-			// @ts-expect-error – narrow keys manually
 			[name]: value,
 		}));
 	};
