@@ -237,12 +237,6 @@ export const useAuthStore = create<AuthState>()(
 				const { user } = get();
 				if (!user) return "/login";
 
-				console.log("Check Redirect - User:", { 
-					email: user.email, 
-					status: user.verificationStatus, 
-					emailVerified: user.emailVerified 
-				});
-
 				// 0. Verified users always have access (bypass other checks)
 				if (user.verificationStatus === "verified") {
 					return null;
@@ -252,39 +246,9 @@ export const useAuthStore = create<AuthState>()(
 				if (!user.emailVerified) {
 					return "/verify-email";
 				}
-				
-				// 1.5 Contact Details (Phone)
-				// If strictly enforcing phone verification (user said phone verification is mandatory via OTP)
-				// Check if phone exists and is verified? Or just exists?
-				// User wants "Screen 4A". I'll route there if phone is missing.
-				// Note: userType 'employer' might have different flow, but assuming consistency.
-				if (!user.phone) {
-					return "/onboarding/contact";
-				}
 
-				// 1.6 User Intent/Preferences (only for individuals)
-				// If user has phone but hasn't set preferences, route to intent page
-				if (user.userType === "individual" && user.hasPreferences === false) {
-					return "/onboarding/intent";
-				}
-
-				// 2. Employer: pay registration fee first
-				if (user.userType === "employer" && user.verificationStatus === "draft") {
-					return "/employer/register/payment";
-				}
-				// 2b. Individual: profile then KYC
-				if (user.userType === "individual" && user.verificationStatus === "draft") {
-					return "/kyc";
-				}
-				// 2c. Employer payment_verified: company profile then KYC
-				if (user.userType === "employer" && user.verificationStatus === "payment_verified") {
-					if (!user.profileComplete) {
-						return "/employer/register/company";
-					}
-					return "/kyc";
-				}
-
-				// 3. KYC submitted but not approved
+				// 2. KYC submitted/under_review – check BEFORE contact/intent so refresh on
+				//    verification-pending always stays there (persisted user can be stale re phone/preferences)
 				if (
 					user.verificationStatus === "submitted" ||
 					user.verificationStatus === "under_review"
@@ -292,17 +256,43 @@ export const useAuthStore = create<AuthState>()(
 					return "/verification-pending";
 				}
 
-				// 4. KYC rejected
+				// 3. KYC rejected
 				if (user.verificationStatus === "rejected") {
 					return "/verification-rejected";
 				}
 
-				// 5. Suspended
+				// 4. Suspended
 				if (user.verificationStatus === "suspended") {
 					return "/account-suspended";
 				}
+				
+				// 5. Contact Details (Phone) – only for users not yet in verification pipeline
+				if (!user.phone) {
+					return "/onboarding/contact";
+				}
 
-				// 6. All complete -> Allow access
+				// 6. User Intent/Preferences (only for individuals)
+				if (user.userType === "individual" && user.hasPreferences === false) {
+					return "/onboarding/intent";
+				}
+
+				// 7. Employer: pay registration fee first
+				if (user.userType === "employer" && user.verificationStatus === "draft") {
+					return "/employer/register/payment";
+				}
+				// 8. Individual: profile then KYC
+				if (user.userType === "individual" && user.verificationStatus === "draft") {
+					return "/kyc";
+				}
+				// 9. Employer payment_verified: company profile then KYC
+				if (user.userType === "employer" && user.verificationStatus === "payment_verified") {
+					if (!user.profileComplete) {
+						return "/employer/register/company";
+					}
+					return "/kyc";
+				}
+
+				// 10. All complete -> Allow access
 				return null;
 			},
 		}),

@@ -11,10 +11,11 @@ import { useAuthStore } from "@/store/authStore";
 export default function VerificationPendingPage() {
 	const router = useRouter();
 	const { t } = useTranslation();
-	const { user, isAuthenticated, isVerified, logout } = useAuthStore();
+	const { user, isAuthenticated, isLoading, isVerified, logout } = useAuthStore();
 
 	// Redirect if not authenticated or if already verified
 	useEffect(() => {
+		if (isLoading) return;
 		if (!isAuthenticated) {
 			router.replace("/login");
 		} else if (isVerified()) {
@@ -24,9 +25,16 @@ export default function VerificationPendingPage() {
 				router.replace("/dashboard");
 			}
 		}
-	}, [isAuthenticated, isVerified, router, user]);
+	}, [isLoading, isAuthenticated, isVerified, router, user]);
 
-	if (!isAuthenticated || !user) {
+	if (isLoading || !user) {
+		return (
+			<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+				<div className="animate-spin h-10 w-10 border-2 border-amber-500 border-t-transparent rounded-full" />
+			</div>
+		);
+	}
+	if (!isAuthenticated) {
 		return null;
 	}
 
