@@ -4,9 +4,12 @@
  */
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import api from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 
 /* ──────────────────────────────────────
    Icon Components (inline SVG)
@@ -86,32 +89,43 @@ const CloseIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
 );
 
 /* ──────────────────────────────────────
-   Sample Data
+   Helpers for API job data
    ────────────────────────────────────── */
 
-const FEATURED_JOBS = [
-	{
-		title: "Frontend Developer",
-		company: "TechServe Solutions",
-		location: "Bengaluru, KA",
-		experience: "2–4 years",
-		salary: "₹6–10 LPA",
-	},
-	{
-		title: "Sales Executive",
-		company: "GreenLeaf Industries",
-		location: "Hyderabad, TS",
-		experience: "1–3 years",
-		salary: "₹3–5 LPA",
-	},
-	{
-		title: "Data Analyst",
-		company: "Finova Analytics",
-		location: "Mumbai, MH",
-		experience: "0–2 years",
-		salary: "₹4–7 LPA",
-	},
-];
+interface LandingJob {
+	uuid: string;
+	title: string;
+	company: string | null;
+	city: string | null;
+	area: string | null;
+	state: string | null;
+	salaryMin: string | null;
+	salaryMax: string | null;
+	salaryType: string | null;
+	hideSalary: boolean | null;
+	minExperienceYears: number | null;
+	maxExperienceYears: number | null;
+}
+
+const formatLandingSalary = (j: LandingJob) => {
+	if (j.hideSalary) return "Not Disclosed";
+	if (!j.salaryMin && !j.salaryMax) return null;
+	const min = j.salaryMin ? parseInt(j.salaryMin) : null;
+	const max = j.salaryMax ? parseInt(j.salaryMax) : null;
+	const unit = j.salaryType === "yearly" ? " LPA" : j.salaryType === "monthly" ? "/month" : "";
+	const fmt = (n: number) => (n >= 100000 ? (n / 100000).toFixed(0) : n.toString());
+	if (min && max) return `₹${fmt(min)}–${fmt(max)}${unit}`;
+	if (min) return `₹${fmt(min)}+${unit}`;
+	return max ? `Up to ₹${fmt(max)}${unit}` : null;
+};
+
+const formatLandingExp = (min: number | null, max: number | null) => {
+	if (min === 0 && (max === 0 || max === null)) return "Fresher";
+	if (min === null && max === null) return null;
+	if (min !== null && max !== null) return `${min}–${max} yrs`;
+	if (min !== null) return `${min}+ yrs`;
+	return max ? `Up to ${max} yrs` : null;
+};
 
 const STEPS = [
 	{
@@ -158,12 +172,63 @@ const TESTIMONIALS = [
 
 export default function HomePage() {
 	const { t } = useTranslation();
+	const router = useRouter();
+	const { isAuthenticated } = useAuthStore();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [mounted, setMounted] = useState(false);
+	const [jobs, setJobs] = useState<LandingJob[]>([]);
+	const [jobsLoading, setJobsLoading] = useState(true);
+	const [searchQuery, setSearchQuery] = useState("");
 
 	useEffect(() => {
 		setMounted(true);
 	}, []);
+
+	// Fetch user location (IP-based) then fetch jobs from API
+	useEffect(() => {
+		if (!mounted) return;
+		let cancelled = false;
+		(async () => {
+			try {
+				const geoRes = await fetch("https://ip-api.com/json/?fields=city,regionName");
+				const geo = geoRes.ok ? await geoRes.json() : null;
+				const city = geo?.city || "";
+				const state = geo?.regionName || "";
+				if (cancelled) return;
+				const params = new URLSearchParams();
+				if (city) params.append("city", city);
+				if (state) params.append("state", state);
+				const res = await api.get(`/jobs/landing?${params.toString()}`);
+				const list = res?.data?.jobs ?? [];
+				if (!cancelled) setJobs(list);
+			} catch {
+				if (!cancelled) setJobs([]);
+			} finally {
+				if (!cancelled) setJobsLoading(false);
+			}
+		})();
+		return () => { cancelled = true; };
+	}, [mounted]);
+
+	const handleSearchSubmit = (e: FormEvent) => {
+		e.preventDefault();
+		const q = searchQuery.trim();
+		const jobsUrl = q ? `/jobs?search=${encodeURIComponent(q)}` : "/jobs";
+		if (isAuthenticated) {
+			router.push(jobsUrl);
+		} else {
+			router.push(`/login?redirect=${encodeURIComponent(jobsUrl)}`);
+		}
+	};
+
+	const handleJobClick = (uuid: string) => {
+		const detailUrl = `/jobs/${uuid}`;
+		if (isAuthenticated) {
+			router.push(detailUrl);
+		} else {
+			router.push(`/login?redirect=${encodeURIComponent(detailUrl)}`);
+		}
+	};
 
 	if (!mounted) {
 		return null; // Avoid rendering until translations load on the client
@@ -194,7 +259,7 @@ export default function HomePage() {
 								{t("landing.findJobs")}
 							</Link>
 							<Link
-								href="/register?type=employer"
+								href="/for-employers"
 								className="text-sm font-medium text-[#475569] hover:text-[#2563EB] transition-colors"
 							>
 								{t("landing.forEmployers")}
@@ -245,7 +310,7 @@ export default function HomePage() {
 									{t("landing.findJobs")}
 								</Link>
 								<Link
-									href="/register?type=employer"
+									href="/for-employers"
 									className="text-sm font-medium text-[#475569] hover:text-[#2563EB] px-2 py-1.5"
 								>
 									{t("landing.forEmployers")}
@@ -314,7 +379,7 @@ export default function HomePage() {
 								<ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
 							</Link>
 							<Link
-								href="/register?type=employer"
+								href="/for-employers"
 								className="inline-flex items-center justify-center px-8 py-4 bg-white text-[#0F172A] font-semibold rounded-xl border border-[#E2E8F0] hover:border-[#2563EB] hover:text-[#2563EB] transition-all text-base shadow-sm hover:shadow-md"
 							>
 								{t("landing.hireTalent")}
@@ -326,16 +391,18 @@ export default function HomePage() {
 				{/* ─── Search Section ─── */}
 				<section className="pb-16 sm:pb-20">
 					<div className="max-w-2xl mx-auto px-4 sm:px-6">
-						<div className="relative">
+						<form onSubmit={handleSearchSubmit} className="relative">
 							<div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
 								<SearchIcon className="w-5 h-5 text-[#94A3B8]" />
 							</div>
 							<input
 								type="text"
 								placeholder="Search by Job Title, Skill or Location"
+								value={searchQuery}
+								onChange={(e) => setSearchQuery(e.target.value)}
 								className="w-full pl-13 pr-5 py-4 bg-white border border-[#E2E8F0] rounded-xl text-sm text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] shadow-sm transition-all"
 							/>
-						</div>
+						</form>
 						<p className="mt-3 text-xs text-[#64748B] text-center leading-relaxed">
 							Explore verified opportunities across different industries and skill levels.
 							Filter by experience, salary and job type to find what fits you best.
@@ -359,47 +426,69 @@ export default function HomePage() {
 
 						{/* Job Cards */}
 						<div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-							{FEATURED_JOBS.map((job, idx) => (
-								<div
-									key={idx}
-									className="group bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-6 hover:border-[#2563EB]/30 hover:shadow-md transition-all duration-300"
-								>
-									{/* Company badge */}
-									<div className="flex items-start justify-between mb-4">
-										<div className="w-10 h-10 rounded-lg bg-[#2563EB]/10 flex items-center justify-center text-[#2563EB] font-bold text-sm">
-											{job.company.charAt(0)}
-										</div>
-										<span className="text-xs font-medium text-[#2563EB] bg-[#2563EB]/5 px-2.5 py-1 rounded-full">
-											New
-										</span>
-									</div>
+							{jobsLoading ? (
+								<div className="col-span-full text-center py-8 text-[#64748B] text-sm">Loading jobs...</div>
+							) : jobs.length === 0 ? (
+								<div className="col-span-full text-center py-8 text-[#64748B] text-sm">No jobs in your area right now. <Link href="/jobs" className="text-[#2563EB] font-medium hover:underline">Browse all jobs</Link></div>
+							) : (
+								jobs.map((job) => {
+									const location = [job.city, job.area].filter(Boolean).join(", ") || job.state || "";
+									const salary = formatLandingSalary(job);
+									const exp = formatLandingExp(job.minExperienceYears, job.maxExperienceYears);
+									const companyDisplay = job.company || "Company";
+									return (
+										<div
+											key={job.uuid}
+											role="button"
+											tabIndex={0}
+											onClick={() => handleJobClick(job.uuid)}
+											onKeyDown={(e) => e.key === "Enter" && handleJobClick(job.uuid)}
+											className="group bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl p-6 hover:border-[#2563EB]/30 hover:shadow-md transition-all duration-300 cursor-pointer"
+										>
+											{/* Company badge */}
+											<div className="flex items-start justify-between mb-4">
+												<div className="w-10 h-10 rounded-lg bg-[#2563EB]/10 flex items-center justify-center text-[#2563EB] font-bold text-sm">
+													{companyDisplay.charAt(0)}
+												</div>
+												<span className="text-xs font-medium text-[#2563EB] bg-[#2563EB]/5 px-2.5 py-1 rounded-full">
+													New
+												</span>
+											</div>
 
-									<h3 className="text-base font-semibold text-[#0F172A] mb-1 group-hover:text-[#2563EB] transition-colors">
-										{job.title}
-									</h3>
-									<p className="text-sm text-[#475569] mb-4">{job.company}</p>
+											<h3 className="text-base font-semibold text-[#0F172A] mb-1 group-hover:text-[#2563EB] transition-colors">
+												{job.title}
+											</h3>
+											<p className="text-sm text-[#475569] mb-4">{companyDisplay}</p>
 
-									{/* Meta */}
-									<div className="space-y-2 mb-5">
-										<div className="flex items-center gap-2 text-xs text-[#64748B]">
-											<MapPinIcon className="w-3.5 h-3.5" />
-											{job.location}
-										</div>
-										<div className="flex items-center gap-2 text-xs text-[#64748B]">
-											<ClockIcon className="w-3.5 h-3.5" />
-											{job.experience}
-										</div>
-										<div className="flex items-center gap-2 text-xs text-[#64748B]">
-											<CurrencyIcon className="w-3.5 h-3.5" />
-											{job.salary}
-										</div>
-									</div>
+											{/* Meta */}
+											<div className="space-y-2 mb-5">
+												{location && (
+													<div className="flex items-center gap-2 text-xs text-[#64748B]">
+														<MapPinIcon className="w-3.5 h-3.5" />
+														{location}
+													</div>
+												)}
+												{exp && (
+													<div className="flex items-center gap-2 text-xs text-[#64748B]">
+														<ClockIcon className="w-3.5 h-3.5" />
+														{exp}
+													</div>
+												)}
+												{salary && (
+													<div className="flex items-center gap-2 text-xs text-[#64748B]">
+														<CurrencyIcon className="w-3.5 h-3.5" />
+														{salary}
+													</div>
+												)}
+											</div>
 
-									<button className="w-full py-2.5 text-sm font-semibold text-[#2563EB] bg-[#2563EB]/5 rounded-lg hover:bg-[#2563EB] hover:text-white transition-all duration-200">
-										Apply Now
-									</button>
-								</div>
-							))}
+											<div className="w-full py-2.5 text-sm font-semibold text-[#2563EB] bg-[#2563EB]/5 rounded-lg hover:bg-[#2563EB] hover:text-white transition-all duration-200 text-center">
+												Apply Now
+											</div>
+										</div>
+									);
+								})
+							)}
 						</div>
 
 						{/* View all */}
@@ -532,7 +621,7 @@ export default function HomePage() {
 										<ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
 									</Link>
 									<Link
-										href="/register?type=employer"
+										href="/for-employers"
 										className="inline-flex items-center justify-center px-7 py-3.5 bg-white/10 text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all text-sm"
 									>
 										Register as Employer
@@ -594,12 +683,12 @@ export default function HomePage() {
 							</h3>
 							<ul className="space-y-3">
 								<li>
-									<Link href="/register?type=employer" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+									<Link href="/for-employers" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
 										{t("landing.hireTalent")}
 									</Link>
 								</li>
 								<li>
-									<Link href="/register?type=employer" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
+									<Link href="/for-employers" className="text-sm text-[#94A3B8] hover:text-white transition-colors">
 										{t("landing.postAJob")}
 									</Link>
 								</li>

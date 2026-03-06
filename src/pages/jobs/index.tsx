@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/router";
 import Link from "next/link";
 import Head from "next/head";
 import { useTranslation } from "react-i18next";
@@ -340,6 +341,7 @@ const JobCard = ({ job, onToggleSave }: JobCardProps) => {
 
 export default function BrowseJobsPage() {
 	const { t } = useTranslation();
+	const router = useRouter();
 	const { user } = useAuthStore();
 
 	const [jobs, setJobs] = useState<Job[]>([]);
@@ -445,13 +447,26 @@ export default function BrowseJobsPage() {
 		setLoadingMore(false);
 	}, [filters, pagination.offset, fetchJobs]);
 
-	// Initial load (no explicit filters → smart routing on backend)
+	// Initial load — read search/city from URL when redirected from landing search
 	useEffect(() => {
 		if (didInit.current) return;
+		if (!router.isReady) return;
 		didInit.current = true;
-		loadJobs(true);
+		const q = router.query;
+		const searchFromUrl = typeof q.search === "string" ? q.search : "";
+		const cityFromUrl = typeof q.city === "string" ? q.city : "";
+		if (searchFromUrl || cityFromUrl) {
+			setFilters((prev) => ({
+				...prev,
+				search: searchFromUrl,
+				city: cityFromUrl,
+			}));
+			loadJobs(true, { search: searchFromUrl, city: cityFromUrl });
+		} else {
+			loadJobs(true);
+		}
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [router.isReady, router.query]);
 
 	// Filter change → debounced reload
 	const isFirstFilterRender = useRef(true);
