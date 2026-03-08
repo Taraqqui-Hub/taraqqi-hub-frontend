@@ -8,7 +8,7 @@ import { useRouter } from "next/router";
 import { useState, useEffect, useCallback, FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
-import api from "@/lib/api";
+import api, { LANDING_LOCATION_KEY } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 /* ──────────────────────────────────────
@@ -173,7 +173,7 @@ const TESTIMONIALS = [
 export default function HomePage() {
 	const { t } = useTranslation();
 	const router = useRouter();
-	const { isAuthenticated } = useAuthStore();
+	const { isAuthenticated, isLoading: authLoading } = useAuthStore();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const [mounted, setMounted] = useState(false);
 	const [jobs, setJobs] = useState<LandingJob[]>([]);
@@ -184,23 +184,51 @@ export default function HomePage() {
 		setMounted(true);
 	}, []);
 
-	// Fetch user location (IP-based) then fetch jobs from API
+	// Featured opportunities: authenticated → personalized (/jobs/landing); not authenticated → public API with location preference (/jobs/landing-public)
 	useEffect(() => {
-		if (!mounted) return;
+		if (!mounted || authLoading) return;
 		let cancelled = false;
+
 		(async () => {
 			try {
-				const geoRes = await fetch("https://ip-api.com/json/?fields=city,regionName");
-				const geo = geoRes.ok ? await geoRes.json() : null;
-				const city = geo?.city || "";
-				const state = geo?.regionName || "";
-				if (cancelled) return;
-				const params = new URLSearchParams();
-				if (city) params.append("city", city);
-				if (state) params.append("state", state);
-				const res = await api.get(`/jobs/landing?${params.toString()}`);
-				const list = res?.data?.jobs ?? [];
-				if (!cancelled) setJobs(list);
+				if (isAuthenticated) {
+					const res = await api.get("/jobs/landing");
+					const list = res?.data?.payload?.jobs ?? res?.data?.jobs ?? [];
+					if (!cancelled) setJobs(list);
+				} else {
+					// Anonymous: use location from localStorage (returning visitor) or fetch from IP (first time), then persist
+					let city = "";
+					let state = "";
+					try {
+						const stored = typeof localStorage !== "undefined" ? localStorage.getItem(LANDING_LOCATION_KEY) : null;
+						if (stored) {
+							const parsed = JSON.parse(stored) as { city?: string; state?: string };
+							city = parsed.city ?? "";
+							state = parsed.state ?? "";
+						}
+					} catch {
+						// ignore invalid stored value
+					}
+					if (!city && !state) {
+						const geoRes = await fetch("https://ip-api.com/json/?fields=city,regionName");
+						const geo = geoRes.ok ? await geoRes.json() : null;
+						city = geo?.city ?? "";
+						state = geo?.regionName ?? "";
+						if (!cancelled && (city || state)) {
+							try {
+								localStorage.setItem(LANDING_LOCATION_KEY, JSON.stringify({ city, state }));
+							} catch {
+								// ignore
+							}
+						}
+					}
+					const params = new URLSearchParams();
+					if (city) params.append("city", city);
+					if (state) params.append("state", state);
+					const res = await api.get(`/jobs/landing-public?${params.toString()}`);
+					const list = res?.data?.payload?.jobs ?? res?.data?.jobs ?? [];
+					if (!cancelled) setJobs(list);
+				}
 			} catch {
 				if (!cancelled) setJobs([]);
 			} finally {
@@ -208,7 +236,7 @@ export default function HomePage() {
 			}
 		})();
 		return () => { cancelled = true; };
-	}, [mounted]);
+	}, [mounted, authLoading, isAuthenticated]);
 
 	const handleSearchSubmit = (e: FormEvent) => {
 		e.preventDefault();

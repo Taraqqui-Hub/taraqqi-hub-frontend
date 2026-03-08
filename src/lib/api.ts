@@ -7,6 +7,9 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+/** localStorage key for anonymous landing location preference (city, state) */
+export const LANDING_LOCATION_KEY = "equalio_landing_location";
+
 // Create axios instance
 const api = axios.create({
 	baseURL: API_BASE_URL,
