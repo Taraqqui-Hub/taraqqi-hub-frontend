@@ -81,10 +81,24 @@ api.interceptors.response.use(
 					return api(originalRequest);
 				}
 			} catch (refreshError) {
-				// Refresh failed, redirect to login
+				// Refresh failed — only redirect to login if we're on a protected page.
+				// Public pages (landing, login, register, etc.) must never redirect so
+				// unauthenticated users can view them.
 				setAccessToken(null);
 				if (typeof window !== "undefined") {
-					window.location.href = "/login";
+					const pathname = window.location.pathname || "";
+					const isPublicPath =
+						pathname === "/" ||
+						pathname === "/login" ||
+						pathname.startsWith("/register") ||
+						pathname === "/for-employers" ||
+						pathname === "/forgot-password" ||
+						pathname.startsWith("/reset-password") ||
+						pathname.startsWith("/verify-email") ||
+						pathname === "/unauthorized";
+					if (!isPublicPath) {
+						window.location.href = "/login";
+					}
 				}
 			}
 		}
