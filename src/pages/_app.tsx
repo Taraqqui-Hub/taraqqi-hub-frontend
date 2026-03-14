@@ -22,7 +22,7 @@ function AppContent({ Component, pageProps }: AppProps) {
       (Array.isArray(i18n.options.defaultNS)
         ? i18n.options.defaultNS[0]
         : i18n.options.defaultNS) || "translation";
-    const hasBundle = i18n.store.hasResourceBundle(lng, defaultNS);
+    const hasBundle = i18n.hasResourceBundle(lng, defaultNS);
 
     if (hasBundle) {
       setI18nReady(true);
